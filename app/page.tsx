@@ -172,11 +172,6 @@ export default async function LandingPage() {
                 ))}
               </div>
             </div>
-            <p className="mt-10 max-w-3xl text-xs leading-relaxed text-muted-foreground">
-              Honest fine print: messages are encrypted in transit and at rest with a key unique to each chat, but
-              datblob isn&apos;t end-to-end encrypted, because our server decrypts messages to deliver them. Anyone in
-              the chat can still take a screenshot, so share accordingly.
-            </p>
           </div>
         </section>
 

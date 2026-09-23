@@ -1,131 +1,63 @@
+<div align="center">
+
+<img src="./app/icon.svg" width="10%" alt="datblob" style="border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);" />
+
 # datblob
 
-Temporary, privacy-focused chat. Sign in, start a chat, and share its link or QR code. Anyone with the link
-joins with just a name. When the owner closes the chat, or after 5 days without activity, the chat and
-everything in it are permanently deleted.
+**Say it. Then let it pop.**
 
-**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · Blobatar · Better Auth · MongoDB
+A temporary, private chat room you can spin up in seconds and delete for good in one click.
 
-## Setup
+</div>
 
-```bash
-pnpm install
-cp .env.example .env.local   # then fill it in
-pnpm db:indexes              # optional: the app also creates indexes on cold start
-pnpm dev
-```
+## ✨ Key Features
 
-### Environment
+- **⚡ Instant Chat Rooms**: Sign in, start a chat, and it's ready.
+- **🔗 Link & QR Sharing**: Share a chat with a link or a scannable QR code. Guests join with just a name, no account needed.
+- **🫧 Blobatar Identities**: Every participant gets a generated blob avatar. Avatars are seeded per chat, so the same person looks different in every room.
+- **🟢 Live Presence**: See who's online, away, or gone, and watch new messages arrive with no page refresh.
+- **👑 Owner Controls**: Rename a chat, remove participants, and close the chat. Closing it deletes everything at once.
+- **⏳ Self-Destructing Chats**: A chat and everything in it is permanently deleted after 5 days without activity. There's no archive and no undo.
+- **🔐 Encrypted at Rest**: Message bodies and chat titles are encrypted with AES-256-GCM, and every chat has its own key.
+- **🌟 Premium Minimal UI**: A dark neutral interface with a soft violet accent and blobs that react when you hover.
 
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `MONGODB_URI` | ✓ | MongoDB Atlas connection string. The free M0 tier is enough. |
-| `MONGODB_DB` | | Defaults to `datblob` |
-| `BETTER_AUTH_SECRET` | ✓ | At least 32 characters. Generate with `openssl rand -base64 32` |
-| `BETTER_AUTH_URL` | ✓ in prod | Public origin, e.g. `https://datblob.app` |
-| `DATA_ENCRYPTION_KEY` | ✓ | Master key for encrypting messages at rest. 32 bytes, base64: `openssl rand -base64 32` |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | | Turns on "Continue with GitHub". The button is hidden when these are unset. |
-| `CRON_SECRET` | ✓ in prod | Protects `/api/cron/purge`. Vercel sends it automatically. |
-| `RATE_LIMIT_SECRET` | | HMAC key for rate-limit counters. Falls back to `BETTER_AUTH_SECRET`. |
 
-**Atlas:**
-1. Create a free cluster and a database user.
-2. Under Network Access, allow `0.0.0.0/0`, because Vercel functions don't have fixed IPs.
-3. Copy the `mongodb+srv://…` driver string.
+## 🛠️ Technology Stack
 
-**GitHub OAuth:**
-1. Create an OAuth App under GitHub → Settings → Developer settings.
-2. Set the callback URL to `<BETTER_AUTH_URL>/api/auth/callback/github`.
+- **Framework**: [Next.js 16 (App Router)](https://nextjs.org/)
+- **Runtime & View Library**: [React 19](https://react.dev/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) with [shadcn/ui](https://ui.shadcn.com/) components
+- **Type Safety**: [TypeScript](https://www.typescriptlang.org/) and [Zod](https://zod.dev/)
+- **Authentication**: [Better Auth](https://www.better-auth.com/) (email & password, optional GitHub)
+- **Database**: [MongoDB](https://www.mongodb.com/)
+- **Avatars**: [Blobatar](https://www.npmjs.com/package/blobatar)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Fonts**: [Geist & Geist Mono](https://vercel.com/font), self-hosted
 
-### Deploy to Vercel
+## ⚖️ Privacy & Security
 
-1. Import the repo and set the environment variables above.
-2. Deploy. `vercel.json` registers a daily cron (`/api/cron/purge`), which runs on the Hobby plan.
+### Encryption at Rest
+- Each chat gets its own random 256-bit data key. That key is stored on the chat, wrapped with a master key that never goes into the database.
+- Each ciphertext is bound to its chat and its position in the chat. A value that's edited, or copied into another chat, fails to decrypt.
+- Deleting a chat deletes its key, so any leftover messages, including copies in backups, can no longer be read.
 
-## How it works
+### Identity & Access
+- Owner actions are checked on the server. If you don't own a chat, the API answers `404`, as if the chat didn't exist.
+- Guests get a random token in an httpOnly cookie scoped to that one chat. The server stores only its hash.
+- Chat ids are random values, so links can't be guessed.
+- Creating chats, joining, sending messages, and signing in are all rate-limited.
 
-### Sync without WebSockets
+### Privacy Policy
+- datblob collects **nothing beyond what a chat needs to work**. No analytics, no third-party scripts, and essential cookies only.
+- Sessions don't store IP addresses or user agents, and rate-limit records hold only hashed keys that expire on their own.
+- Chat pages are marked `noindex`, requests send `Referrer-Policy: no-referrer`, and a strict CSP is in place.
+- The only data stored is what a live chat needs:
+  - Your account (email and name) if you're a chat owner
+  - Chat titles and messages, encrypted
+  - Participant display names and last-seen times
+- When a chat ends, all of it is gone.
 
-Clients short-poll `GET /api/chats/:id/sync?after=<seq>`:
-- Every 2 s while the tab is visible and every 15 s while it's hidden.
-- Backs off exponentially after errors, up to 30 s.
-- Polls again immediately after you send a message or come back to the tab.
+<br>
 
-Each message gets a sequence number per chat, allocated atomically with `$inc`. The cursor never skips a
-number that's still being written, so messages sent at the same moment can't get lost. Presence comes from
-`lastSeenAt`, and that write is throttled so most polls don't write anything.
-
-### Expiry and deletion
-
-1. **Access guard.** Every read and write goes through `getLiveChat()`, which treats a chat past its
-   `expiresAt` as gone and deletes it immediately.
-2. **Activity.** Messages, joins and an owner keeping the chat open push `expiresAt` to 5 days from now.
-3. **TTL index.** A TTL index on `chats.expiresAt` makes MongoDB drop expired chats within about a minute.
-4. **Daily cron.** A daily sweep deletes any expired chats and orphaned messages or participants that are left.
-
-**Close chat** deletes the chat document first, so access is cut off right away, then its messages and
-participants. Nothing is soft-deleted or archived.
-
-### Encryption at rest
-
-Message bodies and chat titles are stored encrypted with AES-256-GCM, using envelope encryption:
-
-- Each chat gets its own random 256-bit data key.
-- That key is stored on the chat, wrapped (encrypted) with `DATA_ENCRYPTION_KEY`. The master key never goes
-  into the database.
-- Each ciphertext is authenticated together with its chat id, and for messages its sequence number too. A
-  value that is edited, or copied into another chat or another slot, fails to decrypt.
-- Deleting a chat deletes its wrapped key. Any messages left behind, including ones in backups that lack
-  the chat document, can no longer be decrypted.
-
-So a leaked database dump or backup shows ciphertext, not conversations. This is server-side encryption, not
-end-to-end: the app server decrypts to serve messages, so anyone holding both the database and
-`DATA_ENCRYPTION_KEY` can read live chats. Display names stay in plaintext, because the database uses them
-to keep names unique within a chat.
-
-### Identity and authorization
-
-- **Owners** are Better Auth users. Every owner action checks `chat.ownerId === session.user.id` on the
-  server. If you don't own a chat, the API answers `404`, as if the chat didn't exist.
-- **Guests** get a random 256-bit token in an httpOnly cookie scoped to that one chat. The server stores
-  only its SHA-256 hash.
-- **Chat ids** are 128-bit random values encoded as base64url, and the server checks their format before
-  querying.
-- **Mutations** require a same-origin request and SameSite cookies.
-- **Rate limits** use one Mongo fixed-window limiter with HMAC'd keys, shared by auth and chat.
-  - Create: 10 per hour
-  - Join: 10 per minute per IP
-  - Messages: 20 per 10 s
-  - Sync: 120 per minute
-
-### Privacy
-
-- There are no analytics or third-party scripts, and fonts are self-hosted.
-- Headers send `Referrer-Policy: no-referrer` and a strict CSP, and chat pages are marked `noindex`.
-- Sessions don't store IP addresses or user agents. Rate-limit records contain only hashed keys and expire
-  on their own.
-- Avatars are generated per chat (`chatId + name`), so a person's avatar can't be matched across chats.
-- Messages are encrypted at rest (see above) but not end-to-end, and the landing page says so.
-
-## Scripts
-
-```bash
-pnpm dev          # dev server
-pnpm build        # production build
-pnpm lint         # eslint
-pnpm typecheck    # tsc --noEmit
-pnpm test         # vitest (integration tests run against an in-memory MongoDB replica set)
-pnpm db:indexes   # create indexes, including the TTL indexes
-```
-
-## Layout
-
-```
-app/                  routes: landing, (auth), dashboard, c/[chatId], api/*
-components/chat/      chat room, message list, composer, share/close dialogs, join form
-components/ui/        shadcn primitives and Blobatar registry components
-hooks/use-chat-sync   polling engine (reducer + backoff + optimistic sends)
-lib/chats/            domain logic: access, service, delete, expiry, views
-lib/{auth,db,env,rate-limit,validation}.ts
-proxy.ts              optimistic auth redirect for /dashboard
-```
+**Made with love for love. 💜**  
+*Say it. Then let it pop.*
