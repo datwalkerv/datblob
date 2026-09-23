@@ -1,69 +1,212 @@
-import Image from "next/image";
+import { Blobatar } from "@blobatar/react";
+import { happy, sleepy, wink } from "blobatar/expression";
+import {
+  ArrowRight,
+  EyeOff,
+  Fingerprint,
+  KeyRound,
+  ServerOff,
+  Trash2,
+  UserRoundX,
+} from "lucide-react";
+import Link from "next/link";
+import { BlobField } from "@/components/brand/blob-field";
+import { Logo } from "@/components/brand/logo";
+import { DemoChat } from "@/components/landing/demo-chat";
+import { HeroBlob } from "@/components/landing/hero-blob";
+import { SiteHeader } from "@/components/site-header";
+import { Button } from "@/components/ui/button";
+import { getSession } from "@/lib/session";
 
-export default function Home() {
+const STEPS = [
+  {
+    seed: "step:blow",
+    expression: wink,
+    title: "Blow a blob",
+    body: "Sign in and start a chat in one click. You get an unguessable link and a QR code.",
+  },
+  {
+    seed: "step:share",
+    expression: happy,
+    title: "Share the link",
+    body: "Anyone with the link joins with just a name. No accounts, no apps, no phone numbers.",
+  },
+  {
+    seed: "step:pop",
+    expression: sleepy,
+    title: "Let it pop",
+    body: "Close it when you're done, or it deletes itself after 5 quiet days. Either way, it's gone for good.",
+  },
+];
+
+const PRIVACY = [
+  {
+    icon: Trash2,
+    title: "Deleted means deleted",
+    body: "Closing a chat hard-deletes every message and participant on the spot. There's no archive, no soft delete, no backup copy to restore.",
+  },
+  {
+    icon: UserRoundX,
+    title: "Guests stay anonymous",
+    body: "People you invite only choose a display name. No email, no phone number, no account.",
+  },
+  {
+    icon: KeyRound,
+    title: "Unguessable links",
+    body: "Every chat id carries 128 bits of randomness, so links can't be guessed or enumerated. Owners can lock a chat or remove people at any time.",
+  },
+  {
+    icon: Fingerprint,
+    title: "Unlinkable faces",
+    body: "Your blob avatar is generated per chat, so nobody can match you across conversations by your picture.",
+  },
+  {
+    icon: EyeOff,
+    title: "No trackers",
+    body: "No analytics, no ad pixels and no third-party scripts. Fonts are self-hosted, and links you share don't leak referrers.",
+  },
+  {
+    icon: ServerOff,
+    title: "Minimal footprint",
+    body: "We don't store IP addresses or device details. Rate limiting only keeps short-lived hashed counters.",
+  },
+];
+
+export default async function LandingPage() {
+  const session = await getSession().catch(() => null);
+  const cta = session ? "/dashboard" : "/sign-up";
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="flex min-h-dvh flex-col">
+      <SiteHeader />
+
+      <main className="flex-1">
+        {/* ------------------------------------------------------------ hero */}
+        <section className="relative isolate overflow-hidden">
+          <BlobField />
+          <div className="bg-dots absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_at_top,black_20%,transparent_70%)]" aria-hidden="true" />
+          <div className="mx-auto grid w-full max-w-6xl items-center gap-14 px-4 pt-16 pb-20 sm:px-6 sm:pt-24 lg:grid-cols-[1.1fr_1fr] lg:gap-10 lg:pb-28">
+            <div className="animate-fade-up">
+              <div className="mb-7 flex items-center gap-3">
+                <HeroBlob className="size-14" />
+                <span className="inline-flex h-7 items-center gap-2 rounded-full border border-brand/25 bg-brand-soft px-3 text-xs font-medium text-brand">
+                  <span className="size-1.5 animate-pulse rounded-full bg-brand" aria-hidden="true" />
+                  Ephemeral by default
+                </span>
+              </div>
+              <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+                Say it.
+                <br />
+                <span className="bg-gradient-to-r from-foreground via-brand to-foreground/60 bg-clip-text text-transparent">
+                  Then let it pop.
+                </span>
+              </h1>
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground text-balance sm:text-lg">
+                datblob gives you a temporary chat room in seconds. Share it with a link or QR code, talk, then
+                delete it for good in one click. No archives, no tracking, nothing left behind.
+              </p>
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <Button asChild size="lg" className="h-11 px-5 text-sm">
+                  <Link href={cta}>
+                    Start a temporary chat <ArrowRight />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="ghost" className="h-11 px-4 text-sm">
+                  <Link href="#how">How it works</Link>
+                </Button>
+              </div>
+              <p className="mt-5 text-xs text-muted-foreground">
+                Free. Guests don&apos;t need an account. Chats delete themselves after 5 days without activity.
+              </p>
+            </div>
+
+            <div className="animate-fade-up [animation-delay:120ms]">
+              <DemoChat />
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------- how it works */}
+        <section id="how" className="scroll-mt-20 border-t border-border/60">
+          <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
+            <div className="max-w-xl">
+              <p className="font-mono text-xs tracking-wide text-brand uppercase">How it works</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance">
+                Blobs appear, hold a conversation, and disappear.
+              </h2>
+            </div>
+            <ol className="mt-12 grid gap-4 md:grid-cols-3">
+              {STEPS.map((step, i) => (
+                <li key={step.title} className="group relative rounded-2xl border border-border bg-card/50 p-6 transition-colors hover:border-brand/25 hover:bg-card">
+                  <div className="flex items-center justify-between">
+                    <Blobatar name={step.seed} expression={step.expression} animate="hover" aria-hidden="true" className="size-12" />
+                    <span className="font-mono text-xs text-muted-foreground">0{i + 1}</span>
+                  </div>
+                  <h3 className="mt-6 font-medium tracking-tight">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* --------------------------------------------------------- privacy */}
+        <section id="privacy" className="scroll-mt-20 border-t border-border/60 bg-card/20">
+          <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
+            <div className="grid gap-12 lg:grid-cols-[1fr_2fr]">
+              <div>
+                <p className="font-mono text-xs tracking-wide text-brand uppercase">Privacy</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance">Built to forget.</h2>
+                <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                  datblob is for conversations that shouldn&apos;t outlive their purpose: sharing a code, coordinating
+                  a plan, a quick candid chat. Temporary is the product, not an option buried in a settings menu.
+                </p>
+              </div>
+              <div className="grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2">
+                {PRIVACY.map(({ icon: Icon, title, body }) => (
+                  <div key={title} className="bg-background p-6">
+                    <Icon className="size-5 text-brand" aria-hidden="true" />
+                    <h3 className="mt-4 text-sm font-medium">{title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="mt-10 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+              Honest fine print: messages are encrypted in transit and at rest with a key unique to each chat, but
+              datblob isn&apos;t end-to-end encrypted, because our server decrypts messages to deliver them. Anyone in
+              the chat can still take a screenshot, so share accordingly.
+            </p>
+          </div>
+        </section>
+
+        {/* ------------------------------------------------------------- cta */}
+        <section className="relative isolate overflow-hidden border-t border-border/60">
+          <BlobField intensity={0.6} />
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 py-24 text-center sm:px-6">
+            <div className="flex -space-x-3" aria-hidden="true">
+              {["cta:a", "cta:b", "cta:c", "cta:d"].map((s) => (
+                <Blobatar key={s} name={s} background="circle" animate="hover" className="size-12 rounded-full ring-4 ring-background" />
+              ))}
+            </div>
+            <h2 className="mt-8 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+              Your next conversation doesn&apos;t need to last forever.
+            </h2>
+            <Button asChild size="lg" className="mt-8 h-11 px-5">
+              <Link href={cta}>
+                Start a temporary chat <ArrowRight />
+              </Link>
+            </Button>
+          </div>
+        </section>
       </main>
+
+      <footer className="border-t border-border/60">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-xs text-muted-foreground sm:flex-row sm:px-6">
+          <Logo />
+          <p>Essential cookies only. No analytics. Nothing kept once a chat is gone.</p>
+        </div>
+      </footer>
     </div>
   );
 }
