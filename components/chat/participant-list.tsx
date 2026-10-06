@@ -15,19 +15,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { PresenceAvatar } from "@/components/ui/presence-avatar";
-import { avatarSeed } from "@/lib/avatar";
 import type { ParticipantView } from "@/lib/types";
 
 const ORDER = { online: 0, away: 1, offline: 2 } as const;
 
 export function ParticipantList({
-  chatId,
   meId,
   participants,
   canManage,
   onRemove,
 }: {
-  chatId: string;
   meId: string;
   participants: ParticipantView[];
   canManage: boolean;
@@ -54,7 +51,7 @@ export function ParticipantList({
         {active.map((p) => (
           <li key={p.id} className="group flex items-center gap-3 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-muted/50">
             <PresenceAvatar
-              name={avatarSeed(chatId, p.name)}
+              name={p.avatar}
               label={p.name}
               state={p.presence}
               className="size-8"

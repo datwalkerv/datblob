@@ -10,6 +10,8 @@ import { syncChat, ownerDisplayName } from "@/lib/chats/service";
 import { summarize } from "@/lib/chats/views";
 import { imagesEnabled, pushPublicKey } from "@/lib/env";
 import { requestOrigin } from "@/lib/origin";
+import { accountAvatarSeed } from "@/lib/account";
+import { avatarSeed } from "@/lib/avatar";
 import { getSession } from "@/lib/session";
 
 // Deliberately generic: link unfurlers and browser history shouldn't learn anything about the chat.
@@ -30,7 +32,10 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/c/[
   if (access.status === "visitor") {
     const [people, session] = await Promise.all([
       collections()
-        .participants.find({ chatId: access.chat._id, removed: false }, { projection: { displayName: 1, role: 1 } })
+        .participants.find(
+          { chatId: access.chat._id, removed: false },
+          { projection: { displayName: 1, role: 1, avatarSeed: 1 } },
+        )
         .sort({ role: -1, joinedAt: 1 })
         .limit(50)
         .toArray(),
@@ -45,19 +50,22 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/c/[
         <main className="relative z-10 flex flex-1 items-center justify-center px-4 pb-16">
           <JoinForm
             chat={summarize(access.chat)}
-            members={people.map((p) => p.displayName)}
+            members={people.map((p) => p.avatarSeed ?? avatarSeed(access.chat._id, p.displayName))}
             memberCount={people.length}
-            suggestedName={session ? ownerDisplayName(session.user.name) : undefined}
+            account={
+              session
+                ? { name: ownerDisplayName(session.user.name), avatar: accountAvatarSeed(session.user.id) }
+                : undefined
+            }
           />
         </main>
       </div>
     );
   }
 
-  const [initial, origin, session] = await Promise.all([
+  const [initial, origin] = await Promise.all([
     syncChat(access.chat, access.participant, 0),
     requestOrigin(),
-    getSession(),
   ]);
   return (
     <ChatRoom
@@ -66,7 +74,6 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/c/[
       openShare={share === "1" && access.isOwner}
       imagesEnabled={imagesEnabled()}
       pushPublicKey={pushPublicKey()}
-      signedIn={Boolean(session)}
     />
   );
 }

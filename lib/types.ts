@@ -23,7 +23,10 @@ export type ParticipantDoc = {
   _id: string;
   chatId: string;
   role: ParticipantRole;
+  /** Set for the owner and for signed-in guests: membership follows the account, not a cookie. */
   userId?: string;
+  /** Account blob seed (see lib/account.ts). Anonymous guests get a per-chat seed instead. */
+  avatarSeed?: string;
   displayName: string;
   displayNameLower: string;
   /** sha256 of the guest's bearer token; the raw token only ever lives in their cookie. */
@@ -90,6 +93,8 @@ export type ChatSummary = {
 export type ParticipantView = {
   id: string;
   name: string;
+  /** Blobatar seed to render this person with. */
+  avatar: string;
   role: ParticipantRole;
   presence: "online" | "away" | "offline";
   removed: boolean;

@@ -55,6 +55,11 @@ export async function ensureIndexes(db: Db = database()): Promise<void> {
       { chatId: 1, displayNameLower: 1 },
       { unique: true, name: "chat_unique_name" },
     ),
+    // One membership per account per chat (also makes concurrent auto-joins safe).
+    participants.createIndex(
+      { chatId: 1, userId: 1 },
+      { unique: true, partialFilterExpression: { userId: { $type: "string" } }, name: "chat_user" },
+    ),
     participants.createIndex(
       { tokenHash: 1 },
       { unique: true, partialFilterExpression: { tokenHash: { $type: "string" } }, name: "token" },

@@ -251,7 +251,7 @@ function MessageGroup({
     <div className="group mt-3 flex gap-2.5 first:mt-0">
       <div className="w-8 shrink-0 pt-5">
         <Blobatar
-          name={avatarSeed(chatId, name)}
+          name={author?.avatar ?? avatarSeed(chatId, name)}
           animate="hover"
           aria-hidden="true"
           className={cn("size-8 transition-opacity", author?.removed && "opacity-40 grayscale")}

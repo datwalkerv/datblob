@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/auth-client";
 
-export function UserMenu({ name, email }: { name: string; email: string }) {
+export function UserMenu({ name, email, avatar }: { name: string; email: string; avatar: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -26,7 +26,7 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
         className="rounded-full outline-none transition-transform hover:scale-105 focus-visible:ring-3 focus-visible:ring-ring/50"
         aria-label="Account menu"
       >
-        <Blobatar name={email} className="size-8" blobatar={{ animate: "hover" }} />
+        <Blobatar name={avatar} className="size-8" blobatar={{ animate: "hover" }} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="flex flex-col gap-0.5 py-2">

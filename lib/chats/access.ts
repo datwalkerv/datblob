@@ -1,4 +1,5 @@
 import "server-only";
+import { accountAvatarSeed } from "@/lib/account";
 import { collections } from "@/lib/db";
 import { isExpired } from "@/lib/chats/expiry";
 import { purgeChat } from "@/lib/chats/delete";
@@ -43,7 +44,21 @@ export async function resolveAccess(chatId: string, caller: Caller): Promise<Acc
 
   if (caller.userId && caller.userId === chat.ownerId) {
     const owner = await participants.findOne({ chatId: chat._id, role: "owner", userId: caller.userId });
-    if (owner) return { status: "member", chat, participant: owner, isOwner: true };
+    if (owner) {
+      // Chats created before account blobs existed: backfill the owner's seed once.
+      if (!owner.avatarSeed) {
+        owner.avatarSeed = accountAvatarSeed(caller.userId);
+        await participants.updateOne({ _id: owner._id }, { $set: { avatarSeed: owner.avatarSeed } });
+      }
+      return { status: "member", chat, participant: owner, isOwner: true };
+    }
+  }
+
+  // Signed-in guests are recognised by their account, on any device.
+  if (caller.userId) {
+    const member = await participants.findOne({ chatId: chat._id, role: "guest", userId: caller.userId });
+    if (member && !member.removed) return { status: "member", chat, participant: member, isOwner: false };
+    if (member?.removed) return { status: "removed", chat };
   }
 
   if (caller.guestToken && caller.guestToken.length >= 32 && caller.guestToken.length <= 64) {

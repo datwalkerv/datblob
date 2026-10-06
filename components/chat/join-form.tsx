@@ -4,7 +4,7 @@ import { Blobatar } from "@blobatar/react";
 import { happy } from "blobatar/expression";
 import { ArrowRight, Loader2, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useState, useTransition } from "react";
+import { useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
 import { ExpiryBadge } from "@/components/common/expiry-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,19 +18,53 @@ export function JoinForm({
   chat,
   members,
   memberCount,
-  suggestedName,
+  account,
 }: {
   chat: ChatSummary;
+  /** Blobatar seeds of the people already here. */
   members: string[];
   memberCount: number;
-  suggestedName?: string;
+  /** Signed in: join automatically with the account's name and blob. */
+  account?: { name: string; avatar: string };
 }) {
   const router = useRouter();
-  const [name, setName] = useState(suggestedName ?? "");
+  const [name, setName] = useState(account?.name ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [joined, setJoined] = useState(false);
   const preview = useDeferredValue(name.trim());
+  // Auto-join runs once (guards against React's dev double-invoke); the server is idempotent anyway.
+  const autoJoining = Boolean(account) && !chat.locked;
+  const [autoFailed, setAutoFailed] = useState(false);
+  const attempted = useRef(false);
+
+  useEffect(() => {
+    if (!autoJoining || attempted.current) return;
+    attempted.current = true;
+    api(`/api/chats/${chat.id}/join`, { method: "POST", json: { asAccount: true } })
+      .then(() => router.refresh())
+      .catch((err: unknown) => {
+        if (err instanceof ApiError && err.status === 410) return router.refresh();
+        setError(err instanceof Error ? err.message : "Couldn't join the chat");
+        setAutoFailed(true);
+      });
+  }, [autoJoining, chat.id, router]);
+
+  if (autoJoining && !autoFailed) {
+    return (
+      <div className="flex w-full max-w-md animate-fade-up flex-col items-center rounded-2xl border border-border bg-card/70 p-8 text-center shadow-2xl shadow-black/40 backdrop-blur-xl">
+        <div className="relative">
+          <div className="absolute inset-0 -z-10 scale-125 rounded-full bg-brand-soft blur-xl" aria-hidden="true" />
+          <Blobatar name={account!.avatar} expression={happy} animate="always" aria-hidden="true" className="size-16" />
+        </div>
+        <p className="mt-5 text-xs font-medium tracking-wide text-muted-foreground uppercase">Joining</p>
+        <h1 className="mt-1 text-lg font-semibold tracking-tight break-words">{chat.title}</h1>
+        <p role="status" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> as {account!.name}
+        </p>
+      </div>
+    );
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,7 +88,7 @@ export function JoinForm({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center" aria-hidden="true">
           {members.slice(0, 5).map((m) => (
-            <Blobatar key={m} name={avatarSeed(chat.id, m)} background="circle" className="-ml-2 size-8 rounded-full ring-2 ring-card first:ml-0" />
+            <Blobatar key={m} name={m} background="circle" className="-ml-2 size-8 rounded-full ring-2 ring-card first:ml-0" />
           ))}
           {memberCount > 5 && (
             <span className="-ml-2 grid size-8 place-items-center rounded-full bg-muted font-mono text-[0.65rem] text-muted-foreground ring-2 ring-card">

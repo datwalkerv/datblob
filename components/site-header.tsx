@@ -3,6 +3,7 @@ import { Logo } from "@/components/brand/logo";
 import { UserMenu } from "@/components/auth/user-menu";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/session";
+import { accountAvatarSeed } from "@/lib/account";
 import { cn } from "@/lib/utils";
 
 export async function SiteHeader({ className }: { className?: string }) {
@@ -22,7 +23,7 @@ export async function SiteHeader({ className }: { className?: string }) {
               <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
-              <UserMenu name={session.user.name} email={session.user.email} />
+              <UserMenu name={session.user.name} email={session.user.email} avatar={accountAvatarSeed(session.user.id)} />
             </>
           ) : (
             <>

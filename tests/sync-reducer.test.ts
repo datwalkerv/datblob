@@ -5,6 +5,7 @@ import type { MessageView, ParticipantView, SyncPayload } from "@/lib/types";
 const person = (id: string, name: string, role: "owner" | "guest" = "guest"): ParticipantView => ({
   id,
   name,
+  avatar: id,
   role,
   presence: "online",
   removed: false,

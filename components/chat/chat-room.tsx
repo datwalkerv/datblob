@@ -53,14 +53,12 @@ export function ChatRoom({
   openShare = false,
   imagesEnabled = false,
   pushPublicKey = null,
-  signedIn = false,
 }: {
   initial: SyncPayload;
   origin: string;
   openShare?: boolean;
   imagesEnabled?: boolean;
   pushPublicKey?: string | null;
-  signedIn?: boolean;
 }) {
   const router = useRouter();
   const chatId = initial.chat.id;
@@ -149,7 +147,7 @@ export function ChatRoom({
   const mine = messages.filter((m) => m.participantId === me.id);
 
   const people = (
-    <ParticipantList chatId={chatId} meId={me.id} participants={participants} canManage={isOwner} onRemove={removeParticipant} />
+    <ParticipantList meId={me.id} participants={participants} canManage={isOwner} onRemove={removeParticipant} />
   );
 
   return (
@@ -163,21 +161,7 @@ export function ChatRoom({
             </Link>
           </Button>
         ) : (
-          <>
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="-ml-1 shrink-0 sm:hidden"
-              aria-label={signedIn ? "Back to dashboard" : "Back to home"}
-            >
-              {/* Guests without an account have no dashboard; it would only bounce them to sign-in. */}
-              <Link href={signedIn ? "/dashboard" : "/"}>
-                <ArrowLeft />
-              </Link>
-            </Button>
-            <Logo className="mr-1 hidden sm:inline-flex [&>span]:hidden" />
-          </>
+          <Logo className="mr-1 hidden sm:inline-flex [&>span]:hidden" />
         )}
 
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
@@ -368,7 +352,7 @@ export function ChatRoom({
           onOpenChange={setLeaveOpen}
           onConfirm={leaveChat}
           title={chat.title}
-          seed={avatarSeed(chatId, me.name)}
+          seed={participants.find((p) => p.id === me.id)?.avatar ?? avatarSeed(chatId, me.name)}
           messageCount={mine.length}
           photoCount={mine.filter((m) => m.image).length}
         />

@@ -292,3 +292,54 @@ describe("leaving", () => {
     expect(next.messages).toHaveLength(0);
   });
 });
+
+describe("joining with an account", () => {
+  const user = { id: "user-carol", name: "Carol" };
+
+  it("joins with the account name and blob, recognised by account rather than cookie", async () => {
+    const { chat } = await setup();
+    const p = await m.service.joinChatAsUser(chat, user);
+    expect(p).toMatchObject({ role: "guest", userId: user.id, displayName: "Carol" });
+    expect(p.tokenHash).toBeUndefined();
+    const { accountAvatarSeed } = await import("@/lib/account");
+    expect(p.avatarSeed).toBe(accountAvatarSeed(user.id));
+    expect(p.avatarSeed).not.toContain("carol");
+
+    const access = await m.access.resolveAccess(chat._id, { userId: user.id });
+    expect(access.status === "member" && access.participant._id === p._id && !access.isOwner).toBe(true);
+  });
+
+  it("is idempotent, even for concurrent joins", async () => {
+    const { chat } = await setup();
+    const [a, b] = await Promise.all([m.service.joinChatAsUser(chat, user), m.service.joinChatAsUser(chat, user)]);
+    expect(a._id).toBe(b._id);
+    expect(await m.db.collections().participants.countDocuments({ chatId: chat._id, userId: user.id })).toBe(1);
+  });
+
+  it("adds a suffix when the name is already taken in the chat", async () => {
+    const { chat } = await setup(); // has a guest named "Bob"
+    const p = await m.service.joinChatAsUser(chat, { id: "user-bob-2", name: "Bob" });
+    expect(p.displayName).toBe("Bob 2");
+  });
+
+  it("can't rejoin after being removed, and respects locks", async () => {
+    const { chat } = await setup();
+    const p = await m.service.joinChatAsUser(chat, user);
+    await m.service.removeParticipant(chat._id, "owner-1", p._id);
+    expect((await m.access.resolveAccess(chat._id, { userId: user.id })).status).toBe("removed");
+    await expect(m.service.joinChatAsUser(chat, user)).rejects.toMatchObject({ code: "forbidden" });
+
+    await m.service.updateChat(chat._id, "owner-1", { locked: true });
+    const locked = (await m.access.getLiveChat(chat._id))!;
+    await expect(m.service.joinChatAsUser(locked, { id: "user-dan", name: "Dan" })).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("shows account blobs to others, and per-chat blobs for anonymous guests", async () => {
+    const { chat, guest } = await setup();
+    const p = await m.service.joinChatAsUser(chat, user);
+    const view = await m.service.syncChat(chat, guest, 0);
+    const { avatarSeed } = await import("@/lib/avatar");
+    expect(view.participants.find((x) => x.id === p._id)?.avatar).toBe(p.avatarSeed);
+    expect(view.participants.find((x) => x.id === guest._id)?.avatar).toBe(avatarSeed(chat._id, "Bob"));
+  });
+});

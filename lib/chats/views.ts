@@ -1,5 +1,6 @@
 import "server-only";
 import { presenceOf } from "@/lib/chats/expiry";
+import { avatarSeed } from "@/lib/avatar";
 import { chatCipher, type ChatCipher } from "@/lib/crypto";
 import type {
   ChatDoc,
@@ -31,6 +32,7 @@ export function toParticipantView(p: ParticipantDoc, now = new Date()): Particip
   return {
     id: p._id,
     name: p.displayName,
+    avatar: p.avatarSeed ?? avatarSeed(p.chatId, p.displayName),
     role: p.role,
     presence: p.removed ? "offline" : presenceOf(p.lastSeenAt, now),
     removed: p.removed,

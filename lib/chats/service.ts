@@ -11,6 +11,7 @@ import {
 import { getOwnedChat } from "@/lib/chats/access";
 import { imageFileIds, purgeChat } from "@/lib/chats/delete";
 import { deleteBlobs } from "@/lib/storage";
+import { accountAvatarSeed } from "@/lib/account";
 import { summarize, toChatSummary, toMessageView, toParticipantView } from "@/lib/chats/views";
 import { chatCipher, newChatKey } from "@/lib/crypto";
 import { randomId, sha256 } from "@/lib/ids";
@@ -88,6 +89,7 @@ export async function createChat(input: {
       chatId: chat._id,
       role: "owner",
       userId: input.ownerId,
+      avatarSeed: accountAvatarSeed(input.ownerId),
       displayName,
       displayNameLower: displayName.toLowerCase(),
       joinedAt: now,
@@ -144,6 +146,60 @@ export async function joinChat(
     throw new ChatError("gone", "This chat has ended.");
   }
   return { participant, token };
+}
+
+/**
+ * Join as a signed-in user: no name prompt, no cookie. The account name is
+ * used (with a numeric suffix if someone in the chat already has it) and the
+ * account's blob. Idempotent, including under concurrent requests.
+ */
+export async function joinChatAsUser(
+  chat: ChatDoc,
+  user: { id: string; name: string | null | undefined },
+): Promise<ParticipantDoc> {
+  const { chats, participants } = collections();
+  const existing = await participants.findOne({ chatId: chat._id, userId: user.id });
+  if (existing?.removed) throw new ChatError("forbidden", "You were removed from this chat.");
+  if (existing) return existing;
+  if (chat.locked) throw new ChatError("forbidden", "The owner has locked this chat to new people.");
+
+  const count = await participants.countDocuments({ chatId: chat._id, removed: false });
+  if (count >= MAX_PARTICIPANTS) throw new ChatError("limit_reached", "This chat is full.");
+
+  const base = ownerDisplayName(user.name);
+  const now = new Date();
+  for (let n = 1; n <= 9; n++) {
+    const displayName = n === 1 ? base : `${base.slice(0, LIMITS.displayName.max - 2)} ${n}`;
+    const participant: ParticipantDoc = {
+      _id: randomId(12),
+      chatId: chat._id,
+      role: "guest",
+      userId: user.id,
+      avatarSeed: accountAvatarSeed(user.id),
+      displayName,
+      displayNameLower: displayName.toLowerCase(),
+      joinedAt: now,
+      lastSeenAt: now,
+      removed: false,
+    };
+    try {
+      await participants.insertOne(participant);
+    } catch (err) {
+      if (!isDuplicateKey(err)) throw err;
+      // Same account joined concurrently (e.g. two tabs): use that membership.
+      if ((err as MongoServerError).keyPattern?.userId) {
+        const raced = await participants.findOne({ chatId: chat._id, userId: user.id });
+        if (raced) return raced;
+      }
+      continue; // name taken: try the next suffix
+    }
+    await chats.updateOne(
+      { _id: chat._id, expiresAt: { $gt: now } },
+      { $set: { lastActivityAt: now, expiresAt: expiryFrom(now) } },
+    );
+    return participant;
+  }
+  throw new ChatError("conflict", "Couldn't find a free name in this chat. Join with a different name.");
 }
 
 /* ---------------------------------------------------------------- messages */
