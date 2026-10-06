@@ -35,8 +35,8 @@ export default async function DashboardPage() {
         </div>
         <div className="flex flex-col items-start gap-1.5 sm:items-end">
           <div className="flex flex-wrap gap-2 sm:justify-end">
-            <JoinLinkButton />
             <NewChatButton disabled={atLimit} />
+            <JoinLinkButton />
           </div>
           <span className="font-mono text-[0.7rem] text-muted-foreground tabular-nums">
             {chats.length}/{MAX_LIVE_CHATS_PER_OWNER} live
@@ -50,12 +50,7 @@ export default async function DashboardPage() {
             seed="datblob:empty-dashboard"
             expression={sleepy}
             title="No blobs floating around"
-            action={
-              <div className="flex flex-wrap justify-center gap-2">
-                <JoinLinkButton />
-                <NewChatButton />
-              </div>
-            }
+            action={<NewChatButton />}
           >
             Start a chat, share the link, and it&apos;ll show up here while it&apos;s alive.
           </EmptyState>

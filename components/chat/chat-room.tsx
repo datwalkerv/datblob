@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   Link2,
+  LogOut,
   Lock,
   LockOpen,
   MoreHorizontal,
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 import { Logo } from "@/components/brand/logo";
 import { ChatEnded } from "@/components/chat/chat-ended";
 import { CloseChatDialog } from "@/components/chat/close-chat-dialog";
+import { LeaveChatDialog } from "@/components/chat/leave-chat-dialog";
 import { Composer } from "@/components/chat/composer";
 import { MessageList } from "@/components/chat/message-list";
 import { NotificationButton } from "@/components/chat/notification-button";
@@ -42,6 +44,7 @@ import { useChatSync } from "@/hooks/use-chat-sync";
 import { useCopy } from "@/hooks/use-copy";
 import { useMessageAlerts } from "@/hooks/use-message-alerts";
 import { ApiError, api } from "@/lib/api-client";
+import { avatarSeed } from "@/lib/avatar";
 import type { ChatSummary, ParticipantView, SyncPayload } from "@/lib/types";
 
 export function ChatRoom({
@@ -50,12 +53,14 @@ export function ChatRoom({
   openShare = false,
   imagesEnabled = false,
   pushPublicKey = null,
+  signedIn = false,
 }: {
   initial: SyncPayload;
   origin: string;
   openShare?: boolean;
   imagesEnabled?: boolean;
   pushPublicKey?: string | null;
+  signedIn?: boolean;
 }) {
   const router = useRouter();
   const chatId = initial.chat.id;
@@ -67,6 +72,7 @@ export function ChatRoom({
 
   const [shareOpen, setShareOpen] = useState(openShare);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [closedByMe, setClosedByMe] = useState(false);
@@ -96,6 +102,23 @@ export function ChatRoom({
     }
   }
 
+  async function leaveChat() {
+    try {
+      await api(`/api/chats/${chatId}/leave`, { method: "POST" });
+      try {
+        localStorage.removeItem(`datblob:push:${chatId}`);
+      } catch {}
+      setLeaveOpen(false);
+      sync.markLeft();
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 410 || err.status === 404)) {
+        sync.markGone();
+        return;
+      }
+      toast.error(err instanceof Error ? err.message : "Couldn't leave the chat");
+    }
+  }
+
   async function patch(body: { title?: string; locked?: boolean }) {
     try {
       const { chat: next } = await api<{ chat: ChatSummary }>(`/api/chats/${chatId}`, { method: "PATCH", json: body });
@@ -118,9 +141,12 @@ export function ChatRoom({
     }
   }
 
+  if (status === "left") return <ChatEnded reason="left" />;
   if (status === "gone" || status === "removed") {
     return <ChatEnded reason={status === "removed" ? "removed" : closedByMe ? "closed-by-me" : "gone"} isOwner={isOwner} />;
   }
+
+  const mine = messages.filter((m) => m.participantId === me.id);
 
   const people = (
     <ParticipantList chatId={chatId} meId={me.id} participants={participants} canManage={isOwner} onRemove={removeParticipant} />
@@ -129,15 +155,29 @@ export function ChatRoom({
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       {/* ------------------------------------------------------------ header */}
-      <header className="z-20 box-content flex h-14 shrink-0 pt-safe items-center gap-2 border-b border-border/70 bg-background/80 px-2 backdrop-blur-xl sm:px-4">
+      <header className="z-20 box-content flex h-14 shrink-0 pt-safe items-center gap-1.5 border-b border-border/70 bg-background/80 px-3 backdrop-blur-xl sm:gap-2 sm:px-4">
         {isOwner ? (
-          <Button asChild variant="ghost" size="icon" aria-label="Back to dashboard">
+          <Button asChild variant="ghost" size="icon" className="-ml-1 shrink-0" aria-label="Back to dashboard">
             <Link href="/dashboard">
               <ArrowLeft />
             </Link>
           </Button>
         ) : (
-          <Logo className="mr-1 hidden sm:inline-flex [&>span]:hidden" />
+          <>
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="-ml-1 shrink-0 sm:hidden"
+              aria-label={signedIn ? "Back to dashboard" : "Back to home"}
+            >
+              {/* Guests without an account have no dashboard; it would only bounce them to sign-in. */}
+              <Link href={signedIn ? "/dashboard" : "/"}>
+                <ArrowLeft />
+              </Link>
+            </Button>
+            <Logo className="mr-1 hidden sm:inline-flex [&>span]:hidden" />
+          </>
         )}
 
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
@@ -183,6 +223,11 @@ export function ChatRoom({
               <Trash2 /> Close chat
             </Button>
           )}
+          {!isOwner && (
+            <Button variant="outline" size="sm" onClick={() => setLeaveOpen(true)} className="hidden hover:text-destructive md:inline-flex">
+              <LogOut /> Leave
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Chat options">
@@ -221,6 +266,14 @@ export function ChatRoom({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive" onSelect={() => setCloseOpen(true)}>
                     <Trash2 /> Close &amp; delete chat
+                  </DropdownMenuItem>
+                </>
+              )}
+              {!isOwner && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onSelect={() => setLeaveOpen(true)}>
+                    <LogOut /> Leave chat
                   </DropdownMenuItem>
                 </>
               )}
@@ -299,11 +352,27 @@ export function ChatRoom({
                   <Trash2 /> Close &amp; delete chat
                 </Button>
               )}
+              {!isOwner && (
+                <Button variant="destructive" onClick={() => { setPeopleOpen(false); setLeaveOpen(true); }}>
+                  <LogOut /> Leave chat
+                </Button>
+              )}
             </div>
           </div>
         </SheetContent>
       </Sheet>
 
+      {!isOwner && (
+        <LeaveChatDialog
+          open={leaveOpen}
+          onOpenChange={setLeaveOpen}
+          onConfirm={leaveChat}
+          title={chat.title}
+          seed={avatarSeed(chatId, me.name)}
+          messageCount={mine.length}
+          photoCount={mine.filter((m) => m.image).length}
+        />
+      )}
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} url={url} title={chat.title} fresh={openShare} />
       {isOwner && (
         <>

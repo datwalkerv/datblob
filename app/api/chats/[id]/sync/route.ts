@@ -21,7 +21,7 @@ export async function GET(req: Request, { params }: Ctx) {
     const verdict = await consume(`sync:${access.participant._id}`, RULES.sync);
     if (!verdict.allowed) return limited(verdict);
 
-    return ok(await syncChat(access.chat, access.participant, query.data.after, query.data.focused));
+    return ok(await syncChat(access.chat, access.participant, query.data.after, query.data.focused, query.data.rev));
   } catch (err) {
     return handleError(err);
   }

@@ -199,6 +199,18 @@ describe("image messages", () => {
     expect(await images.readImage(chat, "../../etc/passwd")).toBeNull();
   });
 
+  it("leaving deletes only the leaver's images from storage", async () => {
+    const { chat, guest } = await room();
+    const { participant: other } = await service.joinChat(chat, "Other Person");
+    await images.sendImage(chat, guest, { bytes: png(4, 4), caption: "" });
+    const theirs = await images.sendImage(chat, other, { bytes: png(6, 6), caption: "" });
+    const keptFileId = (await db.collections().messages.findOne({ "image.id": theirs.image!.url.split("/").pop() }))!.image!.fileId;
+
+    await service.leaveChat(chat, guest);
+    expect(deleted).toHaveLength(1);
+    expect(deleted).not.toContain(keptFileId);
+  });
+
   it("closing the chat deletes its images from storage", async () => {
     const { chat, guest } = await room();
     await images.sendImage(chat, guest, { bytes: png(4, 4), caption: "" });

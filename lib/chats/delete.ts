@@ -23,7 +23,10 @@ export async function purgeChat(chatId: string): Promise<void> {
   await deleteBlobs(fileIds);
 }
 
-async function imageFileIds(filter: { chatId: string | { $in: string[] } }): Promise<string[]> {
+export async function imageFileIds(filter: {
+  chatId: string | { $in: string[] };
+  participantId?: string;
+}): Promise<string[]> {
   const docs = await collections()
     .messages.find({ ...filter, image: { $exists: true } }, { projection: { "image.fileId": 1 } })
     .toArray();

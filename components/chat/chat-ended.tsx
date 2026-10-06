@@ -7,7 +7,7 @@ import { BlobField } from "@/components/brand/blob-field";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 
-type Reason = "gone" | "removed" | "closed-by-me";
+type Reason = "gone" | "removed" | "closed-by-me" | "left";
 
 const COPY: Record<Reason, { title: string; body: string }> = {
   gone: {
@@ -18,6 +18,10 @@ const COPY: Record<Reason, { title: string; body: string }> = {
     title: "You're no longer in this chat",
     body: "The owner removed you from this conversation. Your access has been revoked on this device.",
   },
+  left: {
+    title: "You left. Your messages are gone.",
+    body: "Everything you sent in this chat, including photos, was permanently deleted for everyone. If you open the invite link again, you'll join as someone new.",
+  },
   "closed-by-me": {
     title: "Popped. Gone for good.",
     body: "The chat, its messages and its participant list were permanently deleted. Nobody can open the link anymore.",
@@ -26,7 +30,7 @@ const COPY: Record<Reason, { title: string; body: string }> = {
 
 export function ChatEnded({ reason, isOwner = false }: { reason: Reason; isOwner?: boolean }) {
   const copy = COPY[reason];
-  const expression = reason === "removed" ? shy : reason === "closed-by-me" ? sleepy : sad;
+  const expression = reason === "removed" ? shy : reason === "closed-by-me" || reason === "left" ? sleepy : sad;
   return (
     <div className="relative flex min-h-dvh flex-col">
       <BlobField intensity={0.5} />

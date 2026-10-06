@@ -111,7 +111,7 @@ export function JoinLinkButton({ size = "lg", className }: { size?: "sm" | "lg" 
               inputMode="url"
               enterKeyHint="go"
               autoFocus
-              className="h-10 font-mono text-xs"
+              className="h-10 font-mono text-base sm:text-xs md:text-xs"
               aria-invalid={Boolean(error)}
               aria-describedby={error ? "invite-error" : undefined}
             />

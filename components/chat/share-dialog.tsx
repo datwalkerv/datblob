@@ -60,7 +60,7 @@ export function ShareDialog({
               readOnly
               value={url}
               onFocus={(e) => e.currentTarget.select()}
-              className="h-9 font-mono text-xs"
+              className="h-9 font-mono text-base sm:text-xs md:text-xs"
             />
             <Button onClick={() => copy(url, "Invite link copied")} className="h-9 shrink-0" aria-label="Copy invite link">
               {copied ? <Check /> : <Copy />}

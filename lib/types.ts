@@ -10,6 +10,8 @@ export type ChatDoc = {
   titleEnc: string;
   locked: boolean;
   messageSeq: number;
+  /** Bumped whenever messages are deleted (someone left), so clients know to reload instead of append. */
+  rev?: number;
   createdAt: Date;
   lastActivityAt: Date;
   expiresAt: Date;
@@ -78,6 +80,7 @@ export type RateLimitDoc = {
 export type ChatSummary = {
   id: string;
   title: string;
+  rev: number;
   locked: boolean;
   createdAt: string;
   lastActivityAt: string;
@@ -108,6 +111,8 @@ export type SyncPayload = {
   participants: ParticipantView[];
   messages: MessageView[];
   cursor: number;
+  /** True when the client's copy is stale (messages were deleted): replace, don't merge. */
+  reset: boolean;
   serverTime: string;
 };
 

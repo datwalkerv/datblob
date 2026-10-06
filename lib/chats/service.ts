@@ -9,7 +9,8 @@ import {
   expiryFrom,
 } from "@/lib/chats/expiry";
 import { getOwnedChat } from "@/lib/chats/access";
-import { purgeChat } from "@/lib/chats/delete";
+import { imageFileIds, purgeChat } from "@/lib/chats/delete";
+import { deleteBlobs } from "@/lib/storage";
 import { summarize, toChatSummary, toMessageView, toParticipantView } from "@/lib/chats/views";
 import { chatCipher, newChatKey } from "@/lib/crypto";
 import { randomId, sha256 } from "@/lib/ids";
@@ -198,11 +199,15 @@ const FOCUS_WRITE_MS = 8_000;
 export async function syncChat(
   chat: ChatDoc,
   participant: ParticipantDoc,
-  after: number,
+  requestedAfter: number,
   focused = false,
+  knownRev?: number,
 ): Promise<SyncPayload> {
   const { chats, messages, participants } = collections();
   const now = new Date();
+  // Messages were deleted since the client last synced: send a fresh snapshot instead of a delta.
+  const reset = knownRev !== undefined && knownRev !== (chat.rev ?? 0);
+  const after = reset ? 0 : requestedAfter;
 
   // Presence + keepalive: conditional writes, so most polls cost zero writes.
   const writes: Promise<unknown>[] = [
@@ -282,8 +287,33 @@ export async function syncChat(
     ),
     messages: docs.map((d) => toMessageView(d, cipher)),
     cursor,
+    reset,
     serverTime: now.toISOString(),
   };
+}
+
+/* ------------------------------------------------------------------- leave */
+
+/**
+ * A guest leaves: their participant record, every message and photo they
+ * sent, and their notification subscriptions are permanently deleted.
+ * Owners can't leave; they close the chat instead.
+ */
+export async function leaveChat(chat: ChatDoc, participant: ParticipantDoc): Promise<{ deletedMessages: number }> {
+  if (participant.role === "owner") {
+    throw new ChatError("forbidden", "Owners can't leave their own chat. Close it instead.");
+  }
+  const { chats, messages, participants, pushSubscriptions } = collections();
+  const filter = { chatId: chat._id, participantId: participant._id };
+
+  // Revoke access first, so nothing else can be sent while the rest is removed.
+  await participants.deleteOne({ _id: participant._id, chatId: chat._id });
+  const fileIds = await imageFileIds(filter);
+  const [deleted] = await Promise.all([messages.deleteMany(filter), pushSubscriptions.deleteMany(filter)]);
+  // Tell everyone else's client to reload rather than keep showing the deleted messages.
+  await chats.updateOne({ _id: chat._id }, { $inc: { rev: 1 } });
+  await deleteBlobs(fileIds);
+  return { deletedMessages: deleted.deletedCount };
 }
 
 /* ------------------------------------------------------------- owner tools */

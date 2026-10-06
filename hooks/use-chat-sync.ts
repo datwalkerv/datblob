@@ -9,7 +9,7 @@ const VISIBLE_MS = 2_000;
 const HIDDEN_MS = 15_000;
 const MAX_BACKOFF_MS = 30_000;
 
-export type ChatStatus = "live" | "gone" | "removed" | "reconnecting";
+export type ChatStatus = "live" | "gone" | "removed" | "left" | "reconnecting";
 
 export type PendingMessage = {
   clientId: string;
@@ -52,7 +52,8 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "sync": {
       const p = action.payload;
-      const messages = merge(state.messages, p.messages);
+      // A reset means messages were deleted (someone left): take the snapshot as-is.
+      const messages = p.reset ? p.messages : merge(state.messages, p.messages);
       const landed = new Set(p.messages.map((m) => m.clientId).filter(Boolean));
       return {
         ...state,
@@ -61,7 +62,7 @@ function reducer(state: State, action: Action): State {
         participants: p.participants,
         messages,
         pending: state.pending.filter((m) => !landed.has(m.clientId)),
-        cursor: Math.max(state.cursor, p.cursor),
+        cursor: p.reset ? p.cursor : Math.max(state.cursor, p.cursor),
         status: state.status === "reconnecting" ? "live" : state.status,
         skew: new Date(p.serverTime).getTime() - Date.now(),
       };
@@ -116,13 +117,15 @@ function init(initial: SyncPayload): State {
 export function useChatSync(chatId: string, initial: SyncPayload) {
   const [state, dispatch] = useReducer(reducer, initial, init);
   const cursor = useRef(state.cursor);
+  const rev = useRef(state.chat.rev);
   const status = useRef<ChatStatus>(state.status);
   const pollNow = useRef<() => void>(() => {});
 
   useEffect(() => {
     cursor.current = state.cursor;
+    rev.current = state.chat.rev;
     status.current = state.status;
-  }, [state.cursor, state.status]);
+  }, [state.cursor, state.chat.rev, state.status]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -152,7 +155,7 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
       controller?.abort();
       controller = new AbortController();
       try {
-        const payload = await api<SyncPayload>(`/api/chats/${chatId}/sync?after=${cursor.current}&focused=${document.visibilityState === "visible" && document.hasFocus() ? 1 : 0}`, {
+        const payload = await api<SyncPayload>(`/api/chats/${chatId}/sync?after=${cursor.current}&rev=${rev.current}&focused=${document.visibilityState === "visible" && document.hasFocus() ? 1 : 0}`, {
           signal: controller.signal,
         });
         failures = 0;
@@ -160,7 +163,13 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         if (err instanceof ApiError && (err.status === 410 || err.status === 404)) return stop("gone");
-        if (err instanceof ApiError && (err.status === 403 || err.status === 401)) return stop("removed");
+        if (err instanceof ApiError && err.status === 403) return stop("removed");
+        // 401: no longer a member here (e.g. left in another tab). Reload to show the join screen.
+        if (err instanceof ApiError && err.status === 401) {
+          stopped = true;
+          window.location.reload();
+          return;
+        }
         failures++;
         if (failures >= 2) dispatch({ type: "status", status: "reconnecting" });
       }
@@ -265,7 +274,8 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
   const setChat = useCallback((chat: ChatSummary) => dispatch({ type: "chat", chat }), []);
   const markRemoved = useCallback((id: string) => dispatch({ type: "participant-removed", id }), []);
   const markGone = useCallback(() => dispatch({ type: "status", status: "gone" }), []);
+  const markLeft = useCallback(() => dispatch({ type: "status", status: "left" }), []);
   const refresh = useCallback(() => pollNow.current(), []);
 
-  return { ...state, send, retry, discard, setChat, markRemoved, markGone, refresh };
+  return { ...state, send, retry, discard, setChat, markRemoved, markGone, markLeft, refresh };
 }

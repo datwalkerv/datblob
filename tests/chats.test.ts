@@ -237,3 +237,58 @@ describe("rate limiter", () => {
     expect(stored?._id).not.toContain("test:key");
   });
 });
+
+describe("leaving", () => {
+  it("deletes the guest's messages, record and subscriptions, and frees their name", async () => {
+    const { chat, guest } = await setup();
+    const owner = (await m.db.collections().participants.findOne({ chatId: chat._id, role: "owner" }))!;
+    await m.service.sendMessage(chat, owner, "owner says hi");
+    await m.service.sendMessage(chat, guest, "bob secret 1");
+    await m.service.sendMessage(chat, guest, "bob secret 2");
+    const c = m.db.collections();
+    await c.pushSubscriptions.insertOne({ _id: "sub-1", chatId: chat._id, participantId: guest._id, subscriptionEnc: "x", createdAt: new Date() });
+
+    const res = await m.service.leaveChat(chat, guest);
+    expect(res.deletedMessages).toBe(2);
+    expect(await c.messages.countDocuments({ chatId: chat._id, participantId: guest._id })).toBe(0);
+    expect(await c.messages.countDocuments({ chatId: chat._id })).toBe(1);
+    expect(await c.participants.countDocuments({ _id: guest._id })).toBe(0);
+    expect(await c.pushSubscriptions.countDocuments({ participantId: guest._id })).toBe(0);
+    // The name can be used again by someone new.
+    const fresh = (await m.access.getLiveChat(chat._id))!;
+    await expect(m.service.joinChat(fresh, "Bob")).resolves.toBeTruthy();
+  });
+
+  it("the leaver's cookie no longer grants access", async () => {
+    const { chat, guest, token } = await setup();
+    await m.service.leaveChat(chat, guest);
+    expect((await m.access.resolveAccess(chat._id, { guestToken: token })).status).toBe("visitor");
+  });
+
+  it("owners can't leave (they close instead)", async () => {
+    const { chat } = await setup();
+    const owner = (await m.db.collections().participants.findOne({ chatId: chat._id, role: "owner" }))!;
+    await expect(m.service.leaveChat(chat, owner)).rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("other clients get a fresh snapshot without the deleted messages", async () => {
+    const { chat, guest } = await setup();
+    const owner = (await m.db.collections().participants.findOne({ chatId: chat._id, role: "owner" }))!;
+    await m.service.sendMessage(chat, guest, "will vanish");
+    await m.service.sendMessage(chat, owner, "stays");
+    const before = await m.service.syncChat(chat, owner, 0);
+    expect(before.messages.map((x) => x.body)).toEqual(["will vanish", "stays"]);
+
+    await m.service.leaveChat(chat, guest);
+    const live = (await m.access.getLiveChat(chat._id))!;
+    const after = await m.service.syncChat(live, owner, before.cursor, false, before.chat.rev);
+    expect(after.reset).toBe(true);
+    expect(after.messages.map((x) => x.body)).toEqual(["stays"]);
+    expect(after.participants.some((p) => p.id === guest._id)).toBe(false);
+
+    // Once caught up, it's back to normal deltas.
+    const next = await m.service.syncChat(live, owner, after.cursor, false, after.chat.rev);
+    expect(next.reset).toBe(false);
+    expect(next.messages).toHaveLength(0);
+  });
+});

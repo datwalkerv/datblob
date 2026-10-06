@@ -208,7 +208,7 @@ export function Composer({
                 submit();
               }
             }}
-            className="max-h-[200px] flex-1 resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+            className="max-h-[200px] flex-1 resize-none bg-transparent text-base leading-6 sm:text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
             autoComplete="off"
             enterKeyHint="send"
           />

@@ -14,6 +14,7 @@ export function toChatSummary(chat: ChatDoc, cipher: ChatCipher): ChatSummary {
   return {
     id: chat._id,
     title: cipher.decryptTitle(chat.titleEnc),
+    rev: chat.rev ?? 0,
     locked: chat.locked,
     createdAt: chat.createdAt.toISOString(),
     lastActivityAt: chat.lastActivityAt.toISOString(),
