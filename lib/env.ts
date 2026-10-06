@@ -35,7 +35,9 @@ let cached: Env | undefined;
  */
 export function env(): Env {
   if (cached) return cached;
-  const parsed = schema.safeParse(process.env);
+  // Treat empty values (`KEY=""`, as in .env.example) as unset, so optional features simply switch off.
+  const values = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== undefined && v.trim() !== ""));
+  const parsed = schema.safeParse(values);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Invalid environment configuration:\n${issues}`);

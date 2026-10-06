@@ -9,7 +9,7 @@ const VISIBLE_MS = 2_000;
 const HIDDEN_MS = 15_000;
 const MAX_BACKOFF_MS = 30_000;
 
-export type ChatStatus = "live" | "gone" | "removed" | "left" | "reconnecting";
+export type ChatStatus = "live" | "gone" | "removed" | "reconnecting";
 
 export type PendingMessage = {
   clientId: string;
@@ -19,7 +19,7 @@ export type PendingMessage = {
   image?: PreparedImage;
 };
 
-type State = {
+export type State = {
   chat: ChatSummary;
   me: SyncPayload["me"];
   participants: ParticipantView[];
@@ -29,9 +29,11 @@ type State = {
   status: ChatStatus;
   /** serverTime - clientTime, so countdowns don't depend on the viewer's clock being right. */
   skew: number;
+  /** The chat's revision moved without a reset reaching us: the next poll must fetch a full snapshot. */
+  resync: boolean;
 };
 
-type Action =
+export type Action =
   | { type: "sync"; payload: SyncPayload }
   | { type: "status"; status: ChatStatus }
   | { type: "queue"; pending: PendingMessage }
@@ -48,12 +50,23 @@ function merge(existing: MessageView[], incoming: MessageView[]): MessageView[] 
   return [...byId.values()].sort((a, b) => a.seq - b.seq);
 }
 
-function reducer(state: State, action: Action): State {
+export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "sync": {
       const p = action.payload;
-      // A reset means messages were deleted (someone left): take the snapshot as-is.
-      const messages = p.reset ? p.messages : merge(state.messages, p.messages);
+      // A full snapshot replaces what we have: either the server says our copy is stale
+      // (messages were deleted), or we asked for one after noticing that ourselves.
+      const replace = p.reset || state.resync;
+      let messages = replace ? p.messages : merge(state.messages, p.messages);
+
+      // Someone who disappeared from the participant list left, and leaving deletes
+      // everything they sent. Drop their messages right away, whatever else happened.
+      const present = new Set(p.participants.map((x) => x.id));
+      const departed = new Set(state.participants.filter((x) => !present.has(x.id)).map((x) => x.id));
+      if (departed.size) messages = messages.filter((m) => !departed.has(m.participantId));
+
+      // The revision moved but this response was a delta: fetch a snapshot next time.
+      const resync = !replace && p.chat.rev !== state.chat.rev;
       const landed = new Set(p.messages.map((m) => m.clientId).filter(Boolean));
       return {
         ...state,
@@ -62,7 +75,8 @@ function reducer(state: State, action: Action): State {
         participants: p.participants,
         messages,
         pending: state.pending.filter((m) => !landed.has(m.clientId)),
-        cursor: p.reset ? p.cursor : Math.max(state.cursor, p.cursor),
+        cursor: replace ? p.cursor : Math.max(state.cursor, p.cursor),
+        resync,
         status: state.status === "reconnecting" ? "live" : state.status,
         skew: new Date(p.serverTime).getTime() - Date.now(),
       };
@@ -96,7 +110,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-function init(initial: SyncPayload): State {
+export function init(initial: SyncPayload): State {
   return {
     chat: initial.chat,
     me: initial.me,
@@ -106,6 +120,7 @@ function init(initial: SyncPayload): State {
     cursor: initial.cursor,
     status: "live",
     skew: new Date(initial.serverTime).getTime() - Date.now(),
+    resync: false,
   };
 }
 
@@ -118,14 +133,16 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
   const [state, dispatch] = useReducer(reducer, initial, init);
   const cursor = useRef(state.cursor);
   const rev = useRef(state.chat.rev);
+  const resync = useRef(false);
   const status = useRef<ChatStatus>(state.status);
   const pollNow = useRef<() => void>(() => {});
 
   useEffect(() => {
     cursor.current = state.cursor;
     rev.current = state.chat.rev;
+    resync.current = state.resync;
     status.current = state.status;
-  }, [state.cursor, state.chat.rev, state.status]);
+  }, [state.cursor, state.chat.rev, state.resync, state.status]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -155,7 +172,7 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
       controller?.abort();
       controller = new AbortController();
       try {
-        const payload = await api<SyncPayload>(`/api/chats/${chatId}/sync?after=${cursor.current}&rev=${rev.current}&focused=${document.visibilityState === "visible" && document.hasFocus() ? 1 : 0}`, {
+        const payload = await api<SyncPayload>(`/api/chats/${chatId}/sync?after=${resync.current ? 0 : cursor.current}&rev=${rev.current}&focused=${document.visibilityState === "visible" && document.hasFocus() ? 1 : 0}`, {
           signal: controller.signal,
         });
         failures = 0;
@@ -274,8 +291,7 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
   const setChat = useCallback((chat: ChatSummary) => dispatch({ type: "chat", chat }), []);
   const markRemoved = useCallback((id: string) => dispatch({ type: "participant-removed", id }), []);
   const markGone = useCallback(() => dispatch({ type: "status", status: "gone" }), []);
-  const markLeft = useCallback(() => dispatch({ type: "status", status: "left" }), []);
   const refresh = useCallback(() => pollNow.current(), []);
 
-  return { ...state, send, retry, discard, setChat, markRemoved, markGone, markLeft, refresh };
+  return { ...state, send, retry, discard, setChat, markRemoved, markGone, refresh };
 }

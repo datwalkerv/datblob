@@ -109,7 +109,8 @@ export function ChatRoom({
         localStorage.removeItem(`datblob:push:${chatId}`);
       } catch {}
       setLeaveOpen(false);
-      sync.markLeft();
+      toast.success("You left the chat. Your messages were permanently deleted.");
+      router.replace("/");
     } catch (err) {
       if (err instanceof ApiError && (err.status === 410 || err.status === 404)) {
         sync.markGone();
@@ -141,7 +142,6 @@ export function ChatRoom({
     }
   }
 
-  if (status === "left") return <ChatEnded reason="left" />;
   if (status === "gone" || status === "removed") {
     return <ChatEnded reason={status === "removed" ? "removed" : closedByMe ? "closed-by-me" : "gone"} isOwner={isOwner} />;
   }

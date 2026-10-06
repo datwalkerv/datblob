@@ -205,9 +205,6 @@ export async function syncChat(
 ): Promise<SyncPayload> {
   const { chats, messages, participants } = collections();
   const now = new Date();
-  // Messages were deleted since the client last synced: send a fresh snapshot instead of a delta.
-  const reset = knownRev !== undefined && knownRev !== (chat.rev ?? 0);
-  const after = reset ? 0 : requestedAfter;
 
   // Presence + keepalive: conditional writes, so most polls cost zero writes.
   const writes: Promise<unknown>[] = [
@@ -245,25 +242,23 @@ export async function syncChat(
     );
   }
 
-  const [docs, people, fresh] = await Promise.all([
-    after === 0
-      ? messages
-          .find({ chatId: chat._id })
-          .sort({ seq: -1 })
-          .limit(PAGE)
-          .toArray()
-          .then((d) => d.reverse())
-      : messages
-          .find({ chatId: chat._id, seq: { $gt: after } })
-          .sort({ seq: 1 })
-          .limit(PAGE)
-          .toArray(),
+  // Re-read the chat (after our own keepalive, so the expiry is current) *before* querying
+  // messages: the reset decision and the revision we report must come from the same read,
+  // or a leave landing mid-request could hand the client a new revision without the reset.
+  const [people, fresh] = await Promise.all([
     participants.find({ chatId: chat._id }).sort({ joinedAt: 1 }).toArray(),
-    // Read after our own keepalive so the returned expiry is current.
     Promise.all(writes).then(() => chats.findOne({ _id: chat._id })),
   ]);
-
   if (!fresh) throw new ChatError("gone", "This chat has ended.");
+
+  // Messages were deleted since the client last synced: send a fresh snapshot instead of a delta.
+  const reset = knownRev !== undefined && knownRev !== (fresh.rev ?? 0);
+  const after = reset ? 0 : requestedAfter;
+  const docs =
+    after === 0
+      ? (await messages.find({ chatId: chat._id }).sort({ seq: -1 }).limit(PAGE).toArray()).reverse()
+      : await messages.find({ chatId: chat._id, seq: { $gt: after } }).sort({ seq: 1 }).limit(PAGE).toArray();
+
   const cipher = chatCipher(fresh);
 
   let cursor = after;
