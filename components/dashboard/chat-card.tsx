@@ -20,10 +20,20 @@ import { useCopy } from "@/hooks/use-copy";
 import { useNow } from "@/hooks/use-now";
 import { api } from "@/lib/api-client";
 import { formatAgo } from "@/lib/format";
-import type { OwnedChatListItem } from "@/lib/types";
+import type { JoinedChatListItem, OwnedChatListItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function ChatCard({ chat, origin, index }: { chat: OwnedChatListItem; origin: string; index: number }) {
+export function ChatCard({
+  chat,
+  origin,
+  index,
+}: {
+  /** Owned chats get owner tools; joined chats (with an owner) are read-only here. */
+  chat: OwnedChatListItem | JoinedChatListItem;
+  origin: string;
+  index: number;
+}) {
+  const joined = "ownerName" in chat;
   const router = useRouter();
   const [closeOpen, setCloseOpen] = useState(false);
   const [popping, setPopping] = useState(false);
@@ -50,7 +60,12 @@ export function ChatCard({ chat, origin, index }: { chat: OwnedChatListItem; ori
     >
       <div className="group relative flex h-full flex-col rounded-2xl border border-border bg-card/60 p-4 transition-all hover:border-brand/25 hover:bg-card focus-within:border-brand/30">
         <div className="flex items-start gap-3">
-          <Blobatar name={`chat:${chat.id}`} animate="hover" aria-hidden="true" className="size-10 shrink-0" />
+          <Blobatar
+            name={joined ? chat.ownerAvatar : `chat:${chat.id}`}
+            animate="hover"
+            aria-hidden="true"
+            className="size-10 shrink-0"
+          />
           <div className="min-w-0 flex-1">
             <Link
               href={`/c/${chat.id}`}
@@ -58,7 +73,8 @@ export function ChatCard({ chat, origin, index }: { chat: OwnedChatListItem; ori
             >
               {chat.title}
             </Link>
-            <p className="mt-0.5 text-xs text-muted-foreground" suppressHydrationWarning>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground" suppressHydrationWarning>
+              {joined && <>Hosted by {chat.ownerName} · </>}
               Active {formatAgo(now - new Date(chat.lastActivityAt).getTime())}
             </p>
           </div>
@@ -72,10 +88,14 @@ export function ChatCard({ chat, origin, index }: { chat: OwnedChatListItem; ori
               <DropdownMenuItem onSelect={() => copy(url, "Invite link copied")}>
                 <Copy /> Copy invite link
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onSelect={() => setCloseOpen(true)}>
-                <Trash2 /> Close &amp; delete
-              </DropdownMenuItem>
+              {!joined && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onSelect={() => setCloseOpen(true)}>
+                    <Trash2 /> Close &amp; delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -100,7 +120,7 @@ export function ChatCard({ chat, origin, index }: { chat: OwnedChatListItem; ori
         </div>
       </div>
 
-      <CloseChatDialog open={closeOpen} onOpenChange={setCloseOpen} onConfirm={close} title={chat.title} participantCount={chat.participants} />
+      {!joined && <CloseChatDialog open={closeOpen} onOpenChange={setCloseOpen} onConfirm={close} title={chat.title} participantCount={chat.participants} />}
     </li>
   );
 }

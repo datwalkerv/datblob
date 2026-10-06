@@ -12,6 +12,7 @@ import { getOwnedChat } from "@/lib/chats/access";
 import { imageFileIds, purgeChat } from "@/lib/chats/delete";
 import { deleteBlobs } from "@/lib/storage";
 import { accountAvatarSeed } from "@/lib/account";
+import { avatarSeed } from "@/lib/avatar";
 import { summarize, toChatSummary, toMessageView, toParticipantView } from "@/lib/chats/views";
 import { chatCipher, newChatKey } from "@/lib/crypto";
 import { randomId, sha256 } from "@/lib/ids";
@@ -22,6 +23,7 @@ import type {
   ImageAttachment,
   MessageDoc,
   MessageView,
+  JoinedChatListItem,
   OwnedChatListItem,
   ParticipantDoc,
   SyncPayload,
@@ -426,18 +428,48 @@ export async function removeParticipant(
 }
 
 export async function listOwnedChats(userId: string): Promise<OwnedChatListItem[]> {
-  const { chats, participants } = collections();
-  const now = new Date();
-  const list = await chats
-    .find({ ownerId: userId, expiresAt: { $gt: now } })
+  const list = await collections()
+    .chats.find({ ownerId: userId, expiresAt: { $gt: new Date() } })
     .sort({ lastActivityAt: -1 })
     .limit(MAX_LIVE_CHATS_PER_OWNER * 2)
     .toArray();
-  if (!list.length) return [];
+  return withCounts(list);
+}
 
-  const onlineSince = new Date(now.getTime() - 30_000);
-  const counts = await participants
-    .aggregate<{ _id: string; participants: number; online: number }>([
+/** Live chats this account joined as a guest (and wasn't removed from), most recently active first. */
+export async function listJoinedChats(userId: string): Promise<JoinedChatListItem[]> {
+  const { chats, participants } = collections();
+  const memberships = await participants
+    .find({ userId, role: "guest", removed: false }, { projection: { chatId: 1 } })
+    .limit(100)
+    .toArray();
+  if (!memberships.length) return [];
+
+  const list = await chats
+    .find({ _id: { $in: memberships.map((p) => p.chatId) }, expiresAt: { $gt: new Date() } })
+    .sort({ lastActivityAt: -1 })
+    .toArray();
+  const owners = await participants
+    .find({ chatId: { $in: list.map((c) => c._id) }, role: "owner" }, { projection: { chatId: 1, displayName: 1, avatarSeed: 1 } })
+    .toArray();
+  const ownerOf = new Map(owners.map((o) => [o.chatId, o]));
+
+  return (await withCounts(list)).map((item) => {
+    const owner = ownerOf.get(item.id);
+    return {
+      ...item,
+      ownerName: owner?.displayName ?? "Owner",
+      ownerAvatar: owner?.avatarSeed ?? avatarSeed(item.id, owner?.displayName ?? "owner"),
+    };
+  });
+}
+
+/** Adds people / online counts to a list of chats in one aggregation. */
+async function withCounts(list: ChatDoc[]): Promise<OwnedChatListItem[]> {
+  if (!list.length) return [];
+  const onlineSince = new Date(Date.now() - 30_000);
+  const counts = await collections()
+    .participants.aggregate<{ _id: string; participants: number; online: number }>([
       { $match: { chatId: { $in: list.map((c) => c._id) }, removed: false } },
       {
         $group: {

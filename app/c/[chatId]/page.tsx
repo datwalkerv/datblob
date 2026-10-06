@@ -63,9 +63,10 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/c/[
     );
   }
 
-  const [initial, origin] = await Promise.all([
+  const [initial, origin, session] = await Promise.all([
     syncChat(access.chat, access.participant, 0),
     requestOrigin(),
+    getSession(),
   ]);
   return (
     <ChatRoom
@@ -74,6 +75,7 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/c/[
       openShare={share === "1" && access.isOwner}
       imagesEnabled={imagesEnabled()}
       pushPublicKey={pushPublicKey()}
+      signedIn={Boolean(session)}
     />
   );
 }

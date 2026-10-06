@@ -122,3 +122,5 @@ export type SyncPayload = {
 };
 
 export type OwnedChatListItem = ChatSummary & { participants: number; online: number };
+
+export type JoinedChatListItem = OwnedChatListItem & { ownerName: string; ownerAvatar: string };

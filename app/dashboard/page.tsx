@@ -7,7 +7,7 @@ import { ChatCard } from "@/components/dashboard/chat-card";
 import { JoinLinkButton } from "@/components/dashboard/join-link-button";
 import { NewChatButton } from "@/components/dashboard/new-chat-button";
 import { MAX_LIVE_CHATS_PER_OWNER } from "@/lib/chats/expiry";
-import { listOwnedChats } from "@/lib/chats/service";
+import { listJoinedChats, listOwnedChats } from "@/lib/chats/service";
 import { ready } from "@/lib/db";
 import { requestOrigin } from "@/lib/origin";
 import { getSession } from "@/lib/session";
@@ -18,7 +18,11 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/sign-in?next=/dashboard");
   await ready();
-  const [chats, origin] = await Promise.all([listOwnedChats(session.user.id), requestOrigin()]);
+  const [chats, joined, origin] = await Promise.all([
+    listOwnedChats(session.user.id),
+    listJoinedChats(session.user.id),
+    requestOrigin(),
+  ]);
   const atLimit = chats.length >= MAX_LIVE_CHATS_PER_OWNER;
   const firstName = session.user.name.split(" ")[0];
 
@@ -61,6 +65,24 @@ export default async function DashboardPage() {
             <ChatCard key={chat.id} chat={chat} origin={origin} index={i} />
           ))}
         </ul>
+      )}
+
+      {joined.length > 0 && (
+        <section aria-labelledby="joined-heading" className="flex flex-col gap-4">
+          <div>
+            <h2 id="joined-heading" className="text-lg font-semibold tracking-tight">
+              Joined
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Chats you&apos;re in with your account. They disappear when their owner closes them or they expire.
+            </p>
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {joined.map((chat, i) => (
+              <ChatCard key={chat.id} chat={chat} origin={origin} index={chats.length + i} />
+            ))}
+          </ul>
+        </section>
       )}
 
       <div className="flex items-start gap-3 rounded-2xl border border-border bg-card/40 p-4 text-sm">

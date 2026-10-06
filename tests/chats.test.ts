@@ -373,3 +373,28 @@ describe("account names are reserved", () => {
     expect(p.displayName).toBe("Carol");
   });
 });
+
+describe("dashboard: joined chats", () => {
+  it("lists live chats joined with the account, with the host, excluding removed/left/closed ones", async () => {
+    const a = await setup();
+    const b = await setup();
+    const c = await setup();
+    const d = await setup();
+    const me = { id: "user-joiner", name: "Joiner" };
+    await m.service.joinChatAsUser(a.chat, me);
+    const inB = await m.service.joinChatAsUser(b.chat, me);
+    const inC = await m.service.joinChatAsUser(c.chat, me);
+    await m.service.joinChatAsUser(d.chat, me);
+
+    await m.service.removeParticipant(b.chat._id, "owner-1", inB._id); // removed
+    await m.service.leaveChat(c.chat, inC); // left
+    await m.service.closeChat(d.chat._id, "owner-1"); // closed
+
+    const list = await m.service.listJoinedChats(me.id);
+    expect(list.map((x) => x.id)).toEqual([a.chat._id]);
+    expect(list[0]).toMatchObject({ title: "Plans", ownerName: "Alice", participants: 3 });
+    expect(list[0].ownerAvatar).toMatch(/^u:/);
+    // Owned chats stay out of the joined list, and vice versa.
+    expect((await m.service.listOwnedChats(me.id)).length).toBe(0);
+  });
+});

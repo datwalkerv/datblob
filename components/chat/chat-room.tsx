@@ -53,12 +53,15 @@ export function ChatRoom({
   openShare = false,
   imagesEnabled = false,
   pushPublicKey = null,
+  signedIn = false,
 }: {
   initial: SyncPayload;
   origin: string;
   openShare?: boolean;
   imagesEnabled?: boolean;
   pushPublicKey?: string | null;
+  /** Signed-in members (owners and account guests) have a dashboard to go back to. */
+  signedIn?: boolean;
 }) {
   const router = useRouter();
   const chatId = initial.chat.id;
@@ -154,7 +157,7 @@ export function ChatRoom({
     <div className="flex h-dvh flex-col overflow-hidden">
       {/* ------------------------------------------------------------ header */}
       <header className="z-20 box-content flex h-14 shrink-0 pt-safe items-center gap-1.5 border-b border-border/70 bg-background/80 px-3 backdrop-blur-xl sm:gap-2 sm:px-4">
-        {isOwner ? (
+        {isOwner || signedIn ? (
           <Button asChild variant="ghost" size="icon" className="-ml-1 shrink-0" aria-label="Back to dashboard">
             <Link href="/dashboard">
               <ArrowLeft />
