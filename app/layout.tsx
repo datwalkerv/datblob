@@ -39,7 +39,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
-        <Toaster position="top-center" />
+        <Toaster
+          position="top-center"
+          offset={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
+          mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+        />
       </body>
     </html>
   );

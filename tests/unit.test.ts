@@ -72,3 +72,24 @@ describe("safeNext", () => {
       expect(safeNext(bad)).toBe("/dashboard");
   });
 });
+
+describe("extractChatId", async () => {
+  const { extractChatId } = await import("@/lib/invite");
+  const id = "Ab3_dE-fGh1JkLmNoPqRsT";
+  it("accepts links, paths and bare ids", () => {
+    for (const input of [
+      `https://datblob.app/c/${id}`,
+      `https://datblob.app/c/${id}?share=1`,
+      `https://datblob.app/c/${id}#x`,
+      `datblob.app/c/${id}`,
+      `  /c/${id}/  `,
+      id,
+      `Join me: https://datblob.app/c/${id} see you`,
+    ])
+      expect(extractChatId(input)).toBe(id);
+  });
+  it("rejects anything else", () => {
+    for (const input of ["", "hello", `https://datblob.app/c/${id}x`, "https://datblob.app/dashboard", `https://x.com/c/${id.slice(1)}`])
+      expect(extractChatId(input)).toBeNull();
+  });
+});

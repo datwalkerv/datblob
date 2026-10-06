@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { EmptyState } from "@/components/common/empty-state";
 import { ChatCard } from "@/components/dashboard/chat-card";
+import { JoinLinkButton } from "@/components/dashboard/join-link-button";
 import { NewChatButton } from "@/components/dashboard/new-chat-button";
 import { MAX_LIVE_CHATS_PER_OWNER } from "@/lib/chats/expiry";
 import { listOwnedChats } from "@/lib/chats/service";
@@ -33,7 +34,10 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="flex flex-col items-start gap-1.5 sm:items-end">
-          <NewChatButton disabled={atLimit} />
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <JoinLinkButton />
+            <NewChatButton disabled={atLimit} />
+          </div>
           <span className="font-mono text-[0.7rem] text-muted-foreground tabular-nums">
             {chats.length}/{MAX_LIVE_CHATS_PER_OWNER} live
           </span>
@@ -46,7 +50,12 @@ export default async function DashboardPage() {
             seed="datblob:empty-dashboard"
             expression={sleepy}
             title="No blobs floating around"
-            action={<NewChatButton />}
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <JoinLinkButton />
+                <NewChatButton />
+              </div>
+            }
           >
             Start a chat, share the link, and it&apos;ll show up here while it&apos;s alive.
           </EmptyState>

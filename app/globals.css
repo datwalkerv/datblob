@@ -145,6 +145,10 @@
   .text-balance {
     text-wrap: balance;
   }
+  /* Installed iOS app (status bar is translucent): keep top bars clear of the clock/battery. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
   .pb-safe {
     padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
   }

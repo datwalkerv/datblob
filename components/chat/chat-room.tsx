@@ -129,7 +129,7 @@ export function ChatRoom({
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       {/* ------------------------------------------------------------ header */}
-      <header className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border/70 bg-background/80 px-2 backdrop-blur-xl sm:px-4">
+      <header className="z-20 box-content flex h-14 shrink-0 pt-safe items-center gap-2 border-b border-border/70 bg-background/80 px-2 backdrop-blur-xl sm:px-4">
         {isOwner ? (
           <Button asChild variant="ghost" size="icon" aria-label="Back to dashboard">
             <Link href="/dashboard">
@@ -281,7 +281,7 @@ export function ChatRoom({
       </div>
 
       <Sheet open={peopleOpen} onOpenChange={setPeopleOpen}>
-        <SheetContent side="right" className="w-[88vw] max-w-sm gap-0 p-0">
+        <SheetContent side="right" className="w-[88vw] max-w-sm gap-0 p-0 pt-safe">
           <SheetHeader className="border-b border-border">
             <SheetTitle>{chat.title}</SheetTitle>
             <SheetDescription>

@@ -9,7 +9,7 @@ export default function NotFound() {
   return (
     <div className="relative flex min-h-dvh flex-col">
       <BlobField intensity={0.5} />
-      <header className="relative z-10 mx-auto flex h-14 w-full max-w-6xl items-center px-4 sm:px-6">
+      <header className="relative z-10 mx-auto box-content flex h-14 w-full pt-safe max-w-6xl items-center px-4 sm:px-6">
         <Logo />
       </header>
       <main className="relative z-10 flex flex-1 items-center justify-center pb-20">
