@@ -19,6 +19,7 @@ A temporary, private chat room you can spin up in seconds and delete for good in
 - **👑 Owner Controls**: Rename a chat, remove participants, and close the chat. Closing it deletes everything at once.
 - **⏳ Self-Destructing Chats**: A chat and everything in it is permanently deleted after 5 days without activity. There's no archive and no undo.
 - **🔐 Encrypted at Rest**: Message bodies and chat titles are encrypted with AES-256-GCM, and every chat has its own key.
+- **🖼️ Private Image Sharing**: Share PNG, JPEG, WebP, GIF or iPhone HEIC photos. Location and camera metadata are stripped, and images are encrypted before they're stored.
 - **🌟 Premium Minimal UI**: A dark neutral interface with a soft violet accent and blobs that react when you hover.
 
 
@@ -41,6 +42,16 @@ A temporary, private chat room you can spin up in seconds and delete for good in
 - Each ciphertext is bound to its chat and its position in the chat. A value that's edited, or copied into another chat, fails to decrypt.
 - Deleting a chat deletes its key, so any leftover messages, including copies in backups, can no longer be read.
 
+### Image Sharing
+- Uploads go through datblob's own server. The [datupload](https://datupload.vercel.app) API key stays on the server and never reaches the browser.
+- Before storage, each image goes through these steps:
+  - It's identified by its actual bytes. SVG and anything that isn't a raster image is rejected.
+  - [datclean](https://datclean.vercel.app) strips all its metadata: EXIF, XMP, IPTC and GPS. If stripping fails, the image isn't sent.
+  - It's encrypted with the chat's own key.
+- datupload stores only an anonymous encrypted blob, with no filename, no image type and nothing public.
+- Images are served only to chat members. They're decrypted on the fly and never cached.
+- Closing a chat deletes its images from storage. Even if Telegram keeps a copy, the copy can't be read, because the key is gone.
+
 ### Identity & Access
 - Owner actions are checked on the server. If you don't own a chat, the API answers `404`, as if the chat didn't exist.
 - Guests get a random token in an httpOnly cookie scoped to that one chat. The server stores only its hash.
@@ -53,7 +64,7 @@ A temporary, private chat room you can spin up in seconds and delete for good in
 - Chat pages are marked `noindex`, requests send `Referrer-Policy: no-referrer`, and a strict CSP is in place.
 - The only data stored is what a live chat needs:
   - Your account (email and name) if you're a chat owner
-  - Chat titles and messages, encrypted
+  - Chat titles, messages and images, encrypted
   - Participant display names and last-seen times
 - When a chat ends, all of it is gone.
 

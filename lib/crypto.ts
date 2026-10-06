@@ -65,7 +65,31 @@ export type ChatCipher = {
   decryptTitle(sealed: string): string;
   encryptBody(seq: number, body: string): string;
   decryptBody(seq: number, sealed: string): string;
+  /** Binary form for image bytes: iv(12) | ciphertext | tag(16). Bound to the chat and the image id. */
+  encryptImage(imageId: string, bytes: Buffer): Buffer;
+  decryptImage(imageId: string, sealed: Buffer): Buffer;
 };
+
+const TAG_BYTES = 16;
+
+function sealBytes(key: Buffer, plaintext: Buffer, aad: string): Buffer {
+  const iv = randomBytes(IV_BYTES);
+  const cipher = createCipheriv(ALGO, key, iv);
+  cipher.setAAD(Buffer.from(aad, "utf8"));
+  const ct = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return Buffer.concat([iv, ct, cipher.getAuthTag()]);
+}
+
+function openBytes(key: Buffer, sealed: Buffer, aad: string): Buffer {
+  if (sealed.length < IV_BYTES + TAG_BYTES) throw new Error("Ciphertext too short");
+  const decipher = createDecipheriv(ALGO, key, sealed.subarray(0, IV_BYTES));
+  decipher.setAAD(Buffer.from(aad, "utf8"));
+  decipher.setAuthTag(sealed.subarray(sealed.length - TAG_BYTES));
+  return Buffer.concat([decipher.update(sealed.subarray(IV_BYTES, sealed.length - TAG_BYTES)), decipher.final()]);
+}
+
+/** Bytes added by encryptImage (IV + auth tag). */
+export const IMAGE_OVERHEAD_BYTES = IV_BYTES + TAG_BYTES;
 
 export function chatCipher(chat: { _id: string; wrappedKey: string }, rawKey?: Buffer): ChatCipher {
   const key = rawKey ?? open(master(), chat.wrappedKey, `key:${chat._id}`);
@@ -75,5 +99,7 @@ export function chatCipher(chat: { _id: string; wrappedKey: string }, rawKey?: B
     decryptTitle: (sealed) => open(key, sealed, `title:${id}`).toString("utf8"),
     encryptBody: (seq, body) => seal(key, Buffer.from(body, "utf8"), `msg:${id}:${seq}`),
     decryptBody: (seq, sealed) => open(key, sealed, `msg:${id}:${seq}`).toString("utf8"),
+    encryptImage: (imageId, bytes) => sealBytes(key, bytes, `img:${id}:${imageId}`),
+    decryptImage: (imageId, sealed) => openBytes(key, sealed, `img:${id}:${imageId}`),
   };
 }

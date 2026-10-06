@@ -44,10 +44,12 @@ export function ChatRoom({
   initial,
   origin,
   openShare = false,
+  imagesEnabled = false,
 }: {
   initial: SyncPayload;
   origin: string;
   openShare?: boolean;
+  imagesEnabled?: boolean;
 }) {
   const router = useRouter();
   const chatId = initial.chat.id;
@@ -243,7 +245,7 @@ export function ChatRoom({
               ) : undefined
             }
           />
-          <Composer onSend={sync.send} />
+          <Composer onSend={sync.send} imagesEnabled={imagesEnabled} />
         </main>
 
         <aside className="hidden w-72 shrink-0 flex-col gap-6 overflow-y-auto border-l border-border/70 bg-card/30 p-4 lg:flex" aria-label="Chat details">

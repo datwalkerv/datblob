@@ -4,6 +4,7 @@ import { Blobatar } from "@blobatar/react";
 import { happy } from "blobatar/expression";
 import { AlertCircle, ArrowDown, Loader2, RotateCw, X } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ChatImage } from "@/components/chat/chat-image";
 import { Linkified } from "@/components/chat/linkified";
 import { OwnerBadge } from "@/components/chat/owner-badge";
 import { EmptyState } from "@/components/common/empty-state";
@@ -156,15 +157,27 @@ export function MessageList({
                       </Button>
                     </div>
                   )}
-                  <div
-                    className={cn(
-                      "rounded-2xl rounded-br-md border px-3.5 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap",
-                      p.state === "failed"
-                        ? "border-destructive/30 bg-destructive/10"
-                        : "border-brand/15 bg-brand/10 opacity-70",
+                  <div className="flex flex-col items-end gap-1">
+                    {p.image &&
+                      (p.image.previewUrl ? (
+                        <ChatImage src={p.image.previewUrl} width={p.image.width} height={p.image.height} alt="Image you're sending" pending />
+                      ) : (
+                        <div className="flex h-20 w-48 items-center justify-center rounded-2xl border border-border bg-muted/60 text-xs text-muted-foreground">
+                          Uploading photo…
+                        </div>
+                      ))}
+                    {p.body.trim() && (
+                      <div
+                        className={cn(
+                          "rounded-2xl rounded-br-md border px-3.5 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap",
+                          p.state === "failed"
+                            ? "border-destructive/30 bg-destructive/10"
+                            : "border-brand/15 bg-brand/10 opacity-70",
+                        )}
+                      >
+                        {p.body}
+                      </div>
                     )}
-                  >
-                    {p.body}
                   </div>
                   {p.state === "sending" && <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-label="Sending" />}
                 </div>
@@ -213,16 +226,22 @@ function MessageGroup({
           {formatClock(at)}
         </time>
         {messages.map((m, i) => (
-          <div
-            key={m.id}
-            className={cn(
-              "max-w-[85%] animate-message-in rounded-2xl border border-brand/20 bg-brand/15 px-3.5 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground sm:max-w-[75%]",
-              i === messages.length - 1 && "rounded-br-md",
+          <Fragment key={m.id}>
+            {m.image && (
+              <ChatImage src={m.image.url} width={m.image.width} height={m.image.height} alt="Image you shared" className="animate-message-in" />
             )}
-            title={formatFull(new Date(m.createdAt))}
-          >
-            <Linkified text={m.body} />
-          </div>
+            {m.body && (
+              <div
+                className={cn(
+                  "max-w-[85%] animate-message-in rounded-2xl border border-brand/20 bg-brand/15 px-3.5 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground sm:max-w-[75%]",
+                  i === messages.length - 1 && "rounded-br-md",
+                )}
+                title={formatFull(new Date(m.createdAt))}
+              >
+                <Linkified text={m.body} />
+              </div>
+            )}
+          </Fragment>
         ))}
       </div>
     );
@@ -250,16 +269,27 @@ function MessageGroup({
         </div>
         {messages.map((m, i) => (
           <Fragment key={m.id}>
-            <div
-              className={cn(
-                "max-w-[85vw] animate-message-in rounded-2xl border px-3.5 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap sm:max-w-xl",
-                isOwner ? "border-brand/25 bg-card" : "border-border bg-card",
-                i === messages.length - 1 && "rounded-bl-md",
-              )}
-              title={formatFull(new Date(m.createdAt))}
-            >
-              <Linkified text={m.body} />
-            </div>
+            {m.image && (
+              <ChatImage
+                src={m.image.url}
+                width={m.image.width}
+                height={m.image.height}
+                alt={`Image shared by ${name}`}
+                className={cn("animate-message-in", isOwner && "border-brand/25")}
+              />
+            )}
+            {m.body && (
+              <div
+                className={cn(
+                  "max-w-[85vw] animate-message-in rounded-2xl border px-3.5 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap sm:max-w-xl",
+                  isOwner ? "border-brand/25 bg-card" : "border-border bg-card",
+                  i === messages.length - 1 && "rounded-bl-md",
+                )}
+                title={formatFull(new Date(m.createdAt))}
+              >
+                <Linkified text={m.body} />
+              </div>
+            )}
           </Fragment>
         ))}
       </div>

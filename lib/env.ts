@@ -12,6 +12,11 @@ const schema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional(),
   CRON_SECRET: z.string().min(16).optional(),
   RATE_LIMIT_SECRET: z.string().min(16).optional(),
+  /** datupload API key. Server-only: never prefix with NEXT_PUBLIC_. Image sharing is off when unset. */
+  STORAGE_API_KEY: z.string().min(16).optional(),
+  STORAGE_API_URL: z.url().default("https://datupload.vercel.app"),
+  /** datclean metadata-stripping service (no key needed). */
+  DATCLEAN_API_URL: z.url().default("https://datclean.vercel.app"),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -32,6 +37,10 @@ export function env(): Env {
   }
   cached = parsed.data;
   return cached;
+}
+
+export function imagesEnabled(): boolean {
+  return Boolean(env().STORAGE_API_KEY);
 }
 
 export function githubEnabled(): boolean {

@@ -17,6 +17,7 @@ import { LIMITS, displayNameSchema } from "@/lib/validation";
 import type {
   ChatDoc,
   ChatSummary,
+  ImageAttachment,
   MessageDoc,
   MessageView,
   OwnedChatListItem,
@@ -26,7 +27,7 @@ import type {
 
 export class ChatError extends Error {
   constructor(
-    public code: "not_found" | "gone" | "forbidden" | "conflict" | "limit_reached",
+    public code: "bad_request" | "not_found" | "gone" | "forbidden" | "conflict" | "limit_reached",
     message: string,
   ) {
     super(message);
@@ -151,6 +152,7 @@ export async function sendMessage(
   participant: ParticipantDoc,
   body: string,
   clientId?: string,
+  image?: ImageAttachment,
 ): Promise<MessageView> {
   const { chats, messages } = collections();
   const cipher = chatCipher(chat);
@@ -175,6 +177,7 @@ export async function sendMessage(
     seq: updated.messageSeq,
     participantId: participant._id,
     bodyEnc: cipher.encryptBody(updated.messageSeq, body),
+    ...(image ? { image } : {}),
     ...(clientId ? { clientId } : {}),
     createdAt: now,
   };

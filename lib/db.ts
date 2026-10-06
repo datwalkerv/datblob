@@ -59,6 +59,10 @@ export async function ensureIndexes(db: Db = database()): Promise<void> {
     ),
     messages.createIndex({ chatId: 1, seq: 1 }, { unique: true, name: "chat_seq" }),
     messages.createIndex(
+      { chatId: 1, "image.id": 1 },
+      { partialFilterExpression: { "image.id": { $type: "string" } }, name: "chat_image" },
+    ),
+    messages.createIndex(
       { chatId: 1, participantId: 1, clientId: 1 },
       { partialFilterExpression: { clientId: { $type: "string" } }, name: "chat_client_dedupe" },
     ),

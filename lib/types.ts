@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb";
+import type { ImageMime } from "@/lib/images";
 
 export type ChatDoc = {
   _id: string;
@@ -35,10 +36,22 @@ export type MessageDoc = {
   chatId: string;
   seq: number;
   participantId: string;
-  /** Encrypted with the chat key, bound to (chatId, seq). */
+  /** Encrypted with the chat key, bound to (chatId, seq). For image messages this is the caption. */
   bodyEnc: string;
+  image?: ImageAttachment;
   clientId?: string;
   createdAt: Date;
+};
+
+export type ImageAttachment = {
+  /** Our id; part of the encryption AAD and the image URL. */
+  id: string;
+  /** datupload file id. Holds ciphertext only. */
+  fileId: string;
+  mime: ImageMime;
+  size: number;
+  width: number;
+  height: number;
 };
 
 export type RateLimitDoc = {
@@ -71,6 +84,7 @@ export type MessageView = {
   seq: number;
   participantId: string;
   body: string;
+  image?: { url: string; width: number; height: number };
   createdAt: string;
   clientId?: string;
 };

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { ApiError, api, clientId as newClientId } from "@/lib/api-client";
+import type { PreparedImage } from "@/lib/image-prep";
 import type { ChatSummary, MessageView, ParticipantView, SyncPayload } from "@/lib/types";
 
 const VISIBLE_MS = 2_000;
@@ -15,6 +16,7 @@ export type PendingMessage = {
   body: string;
   createdAt: string;
   state: "sending" | "failed";
+  image?: PreparedImage;
 };
 
 type State = {
@@ -35,7 +37,7 @@ type Action =
   | { type: "queue"; pending: PendingMessage }
   | { type: "sent"; clientId: string; message: MessageView }
   | { type: "failed"; clientId: string }
-  | { type: "discard"; clientId: string }
+  | { type: "remove-pending"; clientId: string }
   | { type: "chat"; chat: ChatSummary }
   | { type: "participant-removed"; id: string };
 
@@ -79,7 +81,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         pending: state.pending.map((m) => (m.clientId === action.clientId ? { ...m, state: "failed" } : m)),
       };
-    case "discard":
+    case "remove-pending":
       return { ...state, pending: state.pending.filter((m) => m.clientId !== action.clientId) };
     case "chat":
       return { ...state, chat: action.chat };
@@ -192,11 +194,23 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
   const deliver = useCallback(
     async (pending: PendingMessage) => {
       try {
-        const { message } = await api<{ message: MessageView }>(`/api/chats/${chatId}/messages`, {
-          method: "POST",
-          json: { body: pending.body, clientId: pending.clientId },
-        });
+        let message: MessageView;
+        if (pending.image) {
+          const form = new FormData();
+          form.append("file", pending.image.blob, "image");
+          form.append("caption", pending.body);
+          form.append("clientId", pending.clientId);
+          ({ message } = await api<{ message: MessageView }>(`/api/chats/${chatId}/images`, { method: "POST", body: form }));
+        } else {
+          ({ message } = await api<{ message: MessageView }>(`/api/chats/${chatId}/messages`, {
+            method: "POST",
+            json: { body: pending.body, clientId: pending.clientId },
+          }));
+        }
         dispatch({ type: "sent", clientId: pending.clientId, message });
+        // Keep the local preview alive briefly so the real image can load behind it.
+        const preview = pending.image?.previewUrl;
+        if (preview) setTimeout(() => URL.revokeObjectURL(preview), 30_000);
         pollNow.current();
       } catch (err) {
         if (err instanceof ApiError && (err.status === 410 || err.status === 404)) {
@@ -215,12 +229,13 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
   );
 
   const send = useCallback(
-    (body: string) => {
+    (body: string, image?: PreparedImage) => {
       const pending: PendingMessage = {
         clientId: newClientId(),
         body,
         createdAt: new Date().toISOString(),
         state: "sending",
+        ...(image ? { image } : {}),
       };
       dispatch({ type: "queue", pending });
       return deliver(pending);
@@ -232,14 +247,21 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
     (clientId: string) => {
       const p = state.pending.find((m) => m.clientId === clientId);
       if (!p) return;
-      dispatch({ type: "discard", clientId });
+      dispatch({ type: "remove-pending", clientId });
       dispatch({ type: "queue", pending: { ...p, state: "sending" } });
       return deliver({ ...p, state: "sending" });
     },
     [deliver, state.pending],
   );
 
-  const discard = useCallback((clientId: string) => dispatch({ type: "discard", clientId }), []);
+  const discard = useCallback(
+    (clientId: string) => {
+      const preview = state.pending.find((m) => m.clientId === clientId)?.image?.previewUrl;
+      if (preview) URL.revokeObjectURL(preview);
+      dispatch({ type: "remove-pending", clientId });
+    },
+    [state.pending],
+  );
   const setChat = useCallback((chat: ChatSummary) => dispatch({ type: "chat", chat }), []);
   const markRemoved = useCallback((id: string) => dispatch({ type: "participant-removed", id }), []);
   const markGone = useCallback(() => dispatch({ type: "status", status: "gone" }), []);

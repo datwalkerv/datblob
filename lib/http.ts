@@ -12,6 +12,8 @@ export type ErrorCode =
   | "conflict"
   | "rate_limited"
   | "limit_reached"
+  | "too_large"
+  | "unavailable"
   | "internal";
 
 const STATUS: Record<ErrorCode, number> = {
@@ -23,6 +25,8 @@ const STATUS: Record<ErrorCode, number> = {
   conflict: 409,
   rate_limited: 429,
   limit_reached: 422,
+  too_large: 413,
+  unavailable: 503,
   internal: 500,
 };
 

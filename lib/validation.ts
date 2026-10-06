@@ -33,7 +33,7 @@ export const titleSchema = z
   .transform(clean)
   .pipe(z.string().max(LIMITS.title.max, `Keep the title under ${LIMITS.title.max} characters`));
 
-export const messageBodySchema = z
+const messageText = z
   .string()
   .transform((v) =>
     v
@@ -42,13 +42,19 @@ export const messageBodySchema = z
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
       .replace(/\n{4,}/g, "\n\n\n")
       .trim(),
-  )
-  .pipe(
-    z
-      .string()
-      .min(1, "Message is empty")
-      .max(LIMITS.message.max, `Messages are limited to ${LIMITS.message.max} characters`),
   );
+
+export const messageBodySchema = messageText.pipe(
+  z
+    .string()
+    .min(1, "Message is empty")
+    .max(LIMITS.message.max, `Messages are limited to ${LIMITS.message.max} characters`),
+);
+
+/** Image captions are optional. */
+export const captionSchema = messageText.pipe(
+  z.string().max(LIMITS.message.max, `Captions are limited to ${LIMITS.message.max} characters`),
+);
 
 export const createChatInput = z.object({ title: titleSchema.optional() });
 export const updateChatInput = z
@@ -57,6 +63,10 @@ export const updateChatInput = z
 export const joinChatInput = z.object({ displayName: displayNameSchema });
 export const sendMessageInput = z.object({
   body: messageBodySchema,
+  clientId: z.string().regex(/^[A-Za-z0-9_-]{8,40}$/).optional(),
+});
+export const imageUploadInput = z.object({
+  caption: captionSchema.default(""),
   clientId: z.string().regex(/^[A-Za-z0-9_-]{8,40}$/).optional(),
 });
 export const syncQuery = z.object({

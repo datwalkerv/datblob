@@ -42,6 +42,15 @@ export function toMessageView(m: MessageDoc, cipher: ChatCipher): MessageView {
     seq: m.seq,
     participantId: m.participantId,
     body: cipher.decryptBody(m.seq, m.bodyEnc),
+    ...(m.image
+      ? {
+          image: {
+            url: `/api/chats/${m.chatId}/images/${m.image.id}`,
+            width: m.image.width,
+            height: m.image.height,
+          },
+        }
+      : {}),
     createdAt: m.createdAt.toISOString(),
     ...(m.clientId ? { clientId: m.clientId } : {}),
   };

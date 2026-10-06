@@ -10,6 +10,8 @@ export const RULES = {
   createChat: { window: 60 * 60, max: 10 },
   join: { window: 60, max: 10 },
   message: { window: 10, max: 20 },
+  image: { window: 60, max: 10 },
+  imageView: { window: 60, max: 300 },
   sync: { window: 60, max: 120 },
   mutate: { window: 60, max: 30 },
 } satisfies Record<string, Rule>;
