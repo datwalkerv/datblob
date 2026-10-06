@@ -1,8 +1,10 @@
+import { after } from "next/server";
 import { accessFromRequest } from "@/lib/chats/caller";
 import { handleError } from "@/lib/chats/errors";
 import { sendMessage } from "@/lib/chats/service";
 import { fail, invalid, limited, ok, readJson, sameOrigin } from "@/lib/http";
 import { RULES, consume } from "@/lib/rate-limit";
+import { notifyChat } from "@/lib/push";
 import { sendMessageInput } from "@/lib/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -23,6 +25,8 @@ export async function POST(req: Request, { params }: Ctx) {
     if (!parsed.success) return invalid(parsed.error);
 
     const message = await sendMessage(access.chat, access.participant, parsed.data.body, parsed.data.clientId);
+    const { chat, participant } = access;
+    after(() => notifyChat(chat._id, participant._id, "message"));
     return ok({ message }, { status: 201 });
   } catch (err) {
     return handleError(err);

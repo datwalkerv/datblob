@@ -10,12 +10,16 @@ import { deleteBlobs } from "@/lib/storage";
  * Any leftovers are orphans that the cron sweep removes.
  */
 export async function purgeChat(chatId: string): Promise<void> {
-  const { chats, messages, participants } = collections();
+  const { chats, messages, participants, pushSubscriptions } = collections();
   // Deleting the chat also destroys its wrapped data key: from here on, every
   // message and image ciphertext belonging to it is unreadable.
   await chats.deleteOne({ _id: chatId });
   const fileIds = await imageFileIds({ chatId });
-  await Promise.all([messages.deleteMany({ chatId }), participants.deleteMany({ chatId })]);
+  await Promise.all([
+    messages.deleteMany({ chatId }),
+    participants.deleteMany({ chatId }),
+    pushSubscriptions.deleteMany({ chatId }),
+  ]);
   await deleteBlobs(fileIds);
 }
 
@@ -31,7 +35,7 @@ async function imageFileIds(filter: { chatId: string | { $in: string[] } }): Pro
  * messages and participants whose chat no longer exists.
  */
 export async function purgeExpired(now = new Date()): Promise<{ chats: number; orphans: number }> {
-  const { chats, messages, participants } = collections();
+  const { chats, messages, participants, pushSubscriptions } = collections();
 
   const expired = await chats.find({ expiresAt: { $lte: now } }, { projection: { _id: 1 } }).toArray();
   for (const { _id } of expired) await purgeChat(_id);
@@ -39,6 +43,7 @@ export async function purgeExpired(now = new Date()): Promise<{ chats: number; o
   const referenced = new Set<string>([
     ...(await messages.distinct("chatId")),
     ...(await participants.distinct("chatId")),
+    ...(await pushSubscriptions.distinct("chatId")),
   ]);
   let orphans = 0;
   if (referenced.size) {
@@ -49,11 +54,12 @@ export async function purgeExpired(now = new Date()): Promise<{ chats: number; o
     const dead = ids.filter((id) => !live.has(id));
     if (dead.length) {
       const fileIds = await imageFileIds({ chatId: { $in: dead } });
-      const [m, p] = await Promise.all([
+      const [m, p, s] = await Promise.all([
         messages.deleteMany({ chatId: { $in: dead } }),
         participants.deleteMany({ chatId: { $in: dead } }),
+        pushSubscriptions.deleteMany({ chatId: { $in: dead } }),
       ]);
-      orphans = m.deletedCount + p.deletedCount;
+      orphans = m.deletedCount + p.deletedCount + s.deletedCount;
       await deleteBlobs(fileIds);
     }
   }

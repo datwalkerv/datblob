@@ -10,6 +10,8 @@ const csp = [
   "img-src 'self' data: blob:",
   "font-src 'self'",
   `connect-src 'self'${isDev ? " ws:" : ""}`,
+  "worker-src 'self'",
+  "manifest-src 'self'",
   "form-action 'self' https://github.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -40,6 +42,8 @@ const nextConfig: NextConfig = {
         ],
       },
       { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      // Always fetch the latest service worker.
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }] },
     ];
   },
 };

@@ -17,6 +17,11 @@ const schema = z.object({
   STORAGE_API_URL: z.url().default("https://datupload.vercel.app"),
   /** datclean metadata-stripping service (no key needed). */
   DATCLEAN_API_URL: z.url().default("https://datclean.vercel.app"),
+  /** Web Push (VAPID). Generate with: npx web-push generate-vapid-keys. Push is off when unset. */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  /** Contact for push services: mailto:… or https://…  Falls back to BETTER_AUTH_URL. */
+  VAPID_SUBJECT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -41,6 +46,12 @@ export function env(): Env {
 
 export function imagesEnabled(): boolean {
   return Boolean(env().STORAGE_API_KEY);
+}
+
+/** The VAPID public key (safe to expose; it's what browsers subscribe with), or null when push is off. */
+export function pushPublicKey(): string | null {
+  const e = env();
+  return e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY ? e.VAPID_PUBLIC_KEY : null;
 }
 
 export function githubEnabled(): boolean {

@@ -28,7 +28,20 @@ export type ParticipantDoc = {
   tokenHash?: string;
   joinedAt: Date;
   lastSeenAt: Date;
+  /** Last poll while the chat tab was visible and focused. Used to skip pushes to people already looking. */
+  lastFocusedAt?: Date;
   removed: boolean;
+};
+
+export type PushSubscriptionDoc = {
+  /** sha256(chatId + endpoint): one row per chat per browser. */
+  _id: string;
+  chatId: string;
+  participantId: string;
+  /** The browser's push subscription JSON, encrypted with the chat key (endpoints identify devices). */
+  subscriptionEnc: string;
+  createdAt: Date;
+  lastPushedAt?: Date;
 };
 
 export type MessageDoc = {

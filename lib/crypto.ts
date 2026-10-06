@@ -66,6 +66,9 @@ export type ChatCipher = {
   encryptBody(seq: number, body: string): string;
   decryptBody(seq: number, sealed: string): string;
   /** Binary form for image bytes: iv(12) | ciphertext | tag(16). Bound to the chat and the image id. */
+  /** Generic small secrets (e.g. push subscriptions), bound to the chat and a label. */
+  encryptField(label: string, value: string): string;
+  decryptField(label: string, sealed: string): string;
   encryptImage(imageId: string, bytes: Buffer): Buffer;
   decryptImage(imageId: string, sealed: Buffer): Buffer;
 };
@@ -99,6 +102,8 @@ export function chatCipher(chat: { _id: string; wrappedKey: string }, rawKey?: B
     decryptTitle: (sealed) => open(key, sealed, `title:${id}`).toString("utf8"),
     encryptBody: (seq, body) => seal(key, Buffer.from(body, "utf8"), `msg:${id}:${seq}`),
     decryptBody: (seq, sealed) => open(key, sealed, `msg:${id}:${seq}`).toString("utf8"),
+    encryptField: (label, value) => seal(key, Buffer.from(value, "utf8"), `field:${label}:${id}`),
+    decryptField: (label, sealed) => open(key, sealed, `field:${label}:${id}`).toString("utf8"),
     encryptImage: (imageId, bytes) => sealBytes(key, bytes, `img:${id}:${imageId}`),
     decryptImage: (imageId, sealed) => openBytes(key, sealed, `img:${id}:${imageId}`),
   };

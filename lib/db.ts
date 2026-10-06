@@ -1,7 +1,7 @@
 import "server-only";
 import { MongoClient, type Collection, type Db } from "mongodb";
 import { env } from "@/lib/env";
-import type { ChatDoc, MessageDoc, ParticipantDoc, RateLimitDoc } from "@/lib/types";
+import type { ChatDoc, MessageDoc, ParticipantDoc, PushSubscriptionDoc, RateLimitDoc } from "@/lib/types";
 
 type Cache = { client?: MongoClient; indexes?: Promise<void> };
 
@@ -33,6 +33,7 @@ export function collections() {
     participants: db.collection<ParticipantDoc>("participants"),
     messages: db.collection<MessageDoc>("messages"),
     rateLimits: db.collection<RateLimitDoc>("rateLimits"),
+    pushSubscriptions: db.collection<PushSubscriptionDoc>("pushSubscriptions"),
   };
 }
 
@@ -43,6 +44,7 @@ export async function ensureIndexes(db: Db = database()): Promise<void> {
   const participants: Collection<ParticipantDoc> = db.collection("participants");
   const messages: Collection<MessageDoc> = db.collection("messages");
   const rateLimits: Collection<RateLimitDoc> = db.collection("rateLimits");
+  const pushSubscriptions: Collection<PushSubscriptionDoc> = db.collection("pushSubscriptions");
 
   await Promise.all([
     // TTL: Mongo removes the chat document itself once expiresAt passes.
@@ -67,6 +69,7 @@ export async function ensureIndexes(db: Db = database()): Promise<void> {
       { partialFilterExpression: { clientId: { $type: "string" } }, name: "chat_client_dedupe" },
     ),
     rateLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "ttl_expiresAt" }),
+    pushSubscriptions.createIndex({ chatId: 1, participantId: 1 }, { name: "chat_participant" }),
   ]);
 }
 

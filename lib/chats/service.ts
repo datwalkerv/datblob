@@ -193,11 +193,13 @@ export async function sendMessage(
  * cursor must not jump past 5 until it either lands or clearly never will.
  */
 const GAP_GRACE_MS = 5_000;
+const FOCUS_WRITE_MS = 8_000;
 
 export async function syncChat(
   chat: ChatDoc,
   participant: ParticipantDoc,
   after: number,
+  focused = false,
 ): Promise<SyncPayload> {
   const { chats, messages, participants } = collections();
   const now = new Date();
@@ -209,6 +211,21 @@ export async function syncChat(
       { $set: { lastSeenAt: now } },
     ),
   ];
+  if (focused) {
+    // Someone actively looking at the chat doesn't need a push notification.
+    writes.push(
+      participants.updateOne(
+        {
+          _id: participant._id,
+          $or: [
+            { lastFocusedAt: { $exists: false } },
+            { lastFocusedAt: { $lt: new Date(now.getTime() - FOCUS_WRITE_MS) } },
+          ],
+        },
+        { $set: { lastFocusedAt: now } },
+      ),
+    );
+  }
   if (participant.role === "owner") {
     // An owner with the chat open keeps it alive.
     writes.push(
@@ -307,6 +324,9 @@ export async function removeParticipant(
     { _id: participantId, chatId: chat._id, role: "guest", removed: false },
     { $set: { removed: true }, $unset: { tokenHash: "" } },
   );
+  if (res.matchedCount > 0) {
+    await collections().pushSubscriptions.deleteMany({ chatId: chat._id, participantId });
+  }
   return res.matchedCount > 0;
 }
 

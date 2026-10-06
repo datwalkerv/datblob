@@ -152,7 +152,7 @@ export function useChatSync(chatId: string, initial: SyncPayload) {
       controller?.abort();
       controller = new AbortController();
       try {
-        const payload = await api<SyncPayload>(`/api/chats/${chatId}/sync?after=${cursor.current}`, {
+        const payload = await api<SyncPayload>(`/api/chats/${chatId}/sync?after=${cursor.current}&focused=${document.visibilityState === "visible" && document.hasFocus() ? 1 : 0}`, {
           signal: controller.signal,
         });
         failures = 0;

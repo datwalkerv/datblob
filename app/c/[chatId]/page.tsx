@@ -8,7 +8,7 @@ import { accessFromContext } from "@/lib/chats/caller";
 import { collections } from "@/lib/db";
 import { syncChat, ownerDisplayName } from "@/lib/chats/service";
 import { summarize } from "@/lib/chats/views";
-import { imagesEnabled } from "@/lib/env";
+import { imagesEnabled, pushPublicKey } from "@/lib/env";
 import { requestOrigin } from "@/lib/origin";
 import { getSession } from "@/lib/session";
 
@@ -64,6 +64,7 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/c/[
       origin={origin}
       openShare={share === "1" && access.isOwner}
       imagesEnabled={imagesEnabled()}
+      pushPublicKey={pushPublicKey()}
     />
   );
 }

@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { accessFromRequest } from "@/lib/chats/caller";
 import { handleError } from "@/lib/chats/errors";
 import { sendImage } from "@/lib/chats/images";
@@ -5,6 +6,7 @@ import { imagesEnabled } from "@/lib/env";
 import { fail, invalid, limited, ok, sameOrigin } from "@/lib/http";
 import { MAX_IMAGE_BYTES } from "@/lib/images";
 import { RULES, consume } from "@/lib/rate-limit";
+import { notifyChat } from "@/lib/push";
 import { imageUploadInput } from "@/lib/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -45,6 +47,8 @@ export async function POST(req: Request, { params }: Ctx) {
       bytes: Buffer.from(await file.arrayBuffer()),
       ...parsed.data,
     });
+    const { chat, participant } = access;
+    after(() => notifyChat(chat._id, participant._id, "image"));
     return ok({ message }, { status: 201 });
   } catch (err) {
     return handleError(err);

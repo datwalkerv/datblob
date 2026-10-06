@@ -23,6 +23,7 @@ import { ChatEnded } from "@/components/chat/chat-ended";
 import { CloseChatDialog } from "@/components/chat/close-chat-dialog";
 import { Composer } from "@/components/chat/composer";
 import { MessageList } from "@/components/chat/message-list";
+import { NotificationButton } from "@/components/chat/notification-button";
 import { ParticipantList } from "@/components/chat/participant-list";
 import { RenameDialog } from "@/components/chat/rename-dialog";
 import { ShareDialog } from "@/components/chat/share-dialog";
@@ -48,11 +49,13 @@ export function ChatRoom({
   origin,
   openShare = false,
   imagesEnabled = false,
+  pushPublicKey = null,
 }: {
   initial: SyncPayload;
   origin: string;
   openShare?: boolean;
   imagesEnabled?: boolean;
+  pushPublicKey?: string | null;
 }) {
   const router = useRouter();
   const chatId = initial.chat.id;
@@ -165,6 +168,7 @@ export function ChatRoom({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          <NotificationButton chatId={chatId} publicKey={pushPublicKey} />
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setPeopleOpen(true)} aria-label="Show people">
             <Users />
           </Button>

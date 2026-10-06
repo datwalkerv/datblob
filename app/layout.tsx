@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   description:
     "Spin up a chat, share a link, talk, and let it pop. datblob conversations are ephemeral by design and permanently deleted when they end.",
   applicationName: "datblob",
+  appleWebApp: { capable: true, title: "datblob", statusBarStyle: "black-translucent" },
   referrer: "no-referrer",
   formatDetection: { telephone: false, email: false, address: false },
   openGraph: {

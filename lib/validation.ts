@@ -71,6 +71,7 @@ export const imageUploadInput = z.object({
 });
 export const syncQuery = z.object({
   after: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
+  focused: z.enum(["0", "1"]).default("0").transform((v) => v === "1"),
 });
 
 export const signUpInput = z.object({

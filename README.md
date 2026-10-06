@@ -19,6 +19,7 @@ A temporary, private chat room you can spin up in seconds and delete for good in
 - **👑 Owner Controls**: Rename a chat, remove participants, and close the chat. Closing it deletes everything at once.
 - **⏳ Self-Destructing Chats**: A chat and everything in it is permanently deleted after 5 days without activity. There's no archive and no undo.
 - **🔐 Encrypted at Rest**: Message bodies and chat titles are encrypted with AES-256-GCM, and every chat has its own key.
+- **🔔 Push Notifications**: Get notified about new messages even when the app is closed. This works on Android and desktop, and on iPhone once datblob is added to the Home Screen.
 - **🖼️ Private Image Sharing**: Share PNG, JPEG, WebP, GIF or iPhone HEIC photos. Location and camera metadata are stripped, and images are encrypted before they're stored.
 - **🌟 Premium Minimal UI**: A dark neutral interface with a soft violet accent and blobs that react when you hover.
 
@@ -51,6 +52,14 @@ A temporary, private chat room you can spin up in seconds and delete for good in
 - datupload stores only an anonymous encrypted blob, with no filename, no image type and nothing public.
 - Images are served only to chat members. They're decrypted on the fly and never cached.
 - Closing a chat deletes its images from storage. Even if Telegram keeps a copy, the copy can't be read, because the key is gone.
+
+### Push Notifications
+- Notifications are opt-in per chat. Tap the bell in the chat header.
+- A notification only says who wrote, like "Bob sent a message", never what they wrote. Payloads are end-to-end encrypted by the Web Push protocol, so the push services (Google, Apple, Mozilla, Microsoft) can't read them anyway.
+- Subscriptions are stored encrypted with the chat key. They're deleted when the chat ends or when you're removed from it.
+- No push is sent to someone who is looking at the chat right now. Bursts of messages are combined into one notification per chat.
+- The service worker only handles notifications. It never caches chats or keeps offline copies.
+- On iPhone, Apple only delivers web push to sites added to the Home Screen (iOS 16.4+). datblob shows a short guide when you tap the bell.
 
 ### Identity & Access
 - Owner actions are checked on the server. If you don't own a chat, the API answers `404`, as if the chat didn't exist.
