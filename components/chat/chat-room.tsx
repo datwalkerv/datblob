@@ -10,6 +10,8 @@ import {
   Trash2,
   UserPlus,
   Users,
+  Volume2,
+  VolumeX,
   WifiOff,
 } from "lucide-react";
 import Link from "next/link";
@@ -37,6 +39,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useChatSync } from "@/hooks/use-chat-sync";
 import { useCopy } from "@/hooks/use-copy";
+import { useMessageAlerts } from "@/hooks/use-message-alerts";
 import { ApiError, api } from "@/lib/api-client";
 import type { ChatSummary, ParticipantView, SyncPayload } from "@/lib/types";
 
@@ -55,6 +58,7 @@ export function ChatRoom({
   const chatId = initial.chat.id;
   const sync = useChatSync(chatId, initial);
   const { chat, me, participants, messages, pending, status, skew } = sync;
+  const { soundOn, toggleSound } = useMessageAlerts(messages, me.id, status === "live" || status === "reconnecting");
   const isOwner = me.role === "owner";
   const url = `${origin}/c/${chatId}`;
 
@@ -187,6 +191,14 @@ export function ChatRoom({
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => copy(url, "Invite link copied")}>
                 <Link2 /> Copy invite link
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  toggleSound();
+                }}
+              >
+                {soundOn ? <VolumeX /> : <Volume2 />} {soundOn ? "Mute message sounds" : "Unmute message sounds"}
               </DropdownMenuItem>
               {isOwner && (
                 <>

@@ -15,7 +15,7 @@ export async function SiteHeader({ className }: { className?: string }) {
       )}
     >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Logo href={session ? "/dashboard" : "/"} />
+        <Logo />
         <nav className="flex items-center gap-1.5">
           {session ? (
             <>
