@@ -4,6 +4,7 @@ import { Blobatar } from "@blobatar/react";
 import { happy } from "blobatar/expression";
 import { ArrowRight, Loader2, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
 import { ExpiryBadge } from "@/components/common/expiry-badge";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,8 @@ export function JoinForm({
         router.refresh();
       } catch (err) {
         if (err instanceof ApiError && err.status === 410) return router.refresh();
-        setError(err instanceof Error ? err.message : "Couldn't join the chat");
+        // Server-side rejections (name reserved or taken, chat full, locked…) as a toast.
+        toast.error(err instanceof Error ? err.message : "Couldn't join the chat");
       }
     });
   }

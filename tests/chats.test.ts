@@ -343,3 +343,33 @@ describe("joining with an account", () => {
     expect(view.participants.find((x) => x.id === guest._id)?.avatar).toBe(avatarSeed(chat._id, "Bob"));
   });
 });
+
+describe("account names are reserved", () => {
+  beforeEach(async () => {
+    await m.db.collections().users.deleteMany({});
+    await m.db.collections().users.insertOne({ _id: "acct-1", name: "Carol" });
+  });
+
+  it("anonymous guests can't take an account's name, in any case", async () => {
+    const { chat } = await setup();
+    for (const name of ["Carol", "carol", "CAROL"]) {
+      await expect(m.service.joinChat(chat, name)).rejects.toMatchObject({
+        code: "conflict",
+        message: expect.stringContaining("can't join with that name"),
+      });
+    }
+    expect(await m.db.collections().participants.countDocuments({ chatId: chat._id, displayNameLower: "carol" })).toBe(0);
+  });
+
+  it("similar names are still fine", async () => {
+    const { chat } = await setup();
+    await expect(m.service.joinChat(chat, "Caroline")).resolves.toBeTruthy();
+    await expect(m.service.joinChat(chat, "Carol B")).resolves.toBeTruthy();
+  });
+
+  it("the account itself still joins under its name", async () => {
+    const { chat } = await setup();
+    const p = await m.service.joinChatAsUser(chat, { id: "acct-1", name: "Carol" });
+    expect(p.displayName).toBe("Carol");
+  });
+});

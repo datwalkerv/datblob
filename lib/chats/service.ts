@@ -1,6 +1,6 @@
 import "server-only";
 import { MongoServerError, ObjectId } from "mongodb";
-import { collections } from "@/lib/db";
+import { NAME_COLLATION, collections } from "@/lib/db";
 import {
   MAX_LIVE_CHATS_PER_OWNER,
   MAX_PARTICIPANTS,
@@ -41,6 +41,14 @@ const PAGE = 200;
 
 function isDuplicateKey(err: unknown): boolean {
   return err instanceof MongoServerError && err.code === 11000;
+}
+
+export async function isAccountName(displayName: string): Promise<boolean> {
+  const hit = await collections().users.findOne(
+    { name: displayName.trim() },
+    { collation: NAME_COLLATION, projection: { _id: 1 } },
+  );
+  return Boolean(hit);
 }
 
 /** Account names come from GitHub or sign-up; coerce them into something that fits a chat. */
@@ -114,6 +122,12 @@ export async function joinChat(
 
   const count = await participants.countDocuments({ chatId: chat._id, removed: false });
   if (count >= MAX_PARTICIPANTS) throw new ChatError("limit_reached", "This chat is full.");
+
+  // Account names are reserved: an anonymous guest can't impersonate a real user,
+  // or grab the name before that user joins.
+  if (await isAccountName(displayName)) {
+    throw new ChatError("conflict", "You can't join with that name. It belongs to a datblob account. Pick another one.");
+  }
 
   const now = new Date();
   const token = randomId(32);

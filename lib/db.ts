@@ -33,11 +33,16 @@ export function collections() {
     participants: db.collection<ParticipantDoc>("participants"),
     messages: db.collection<MessageDoc>("messages"),
     rateLimits: db.collection<RateLimitDoc>("rateLimits"),
+    /** Better Auth's user collection (read-only here). */
+    users: db.collection<{ _id: unknown; name?: string | null }>("user"),
     pushSubscriptions: db.collection<PushSubscriptionDoc>("pushSubscriptions"),
   };
 }
 
 export type Collections = ReturnType<typeof collections>;
+
+/** Case-insensitive, accent-sensitive comparison ("alice" = "Alice", "Zoe" ≠ "Zoë"). */
+export const NAME_COLLATION = { locale: "en", strength: 2 } as const;
 
 export async function ensureIndexes(db: Db = database()): Promise<void> {
   const chats: Collection<ChatDoc> = db.collection("chats");
@@ -74,6 +79,8 @@ export async function ensureIndexes(db: Db = database()): Promise<void> {
       { partialFilterExpression: { clientId: { $type: "string" } }, name: "chat_client_dedupe" },
     ),
     rateLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "ttl_expiresAt" }),
+    // Case-insensitive lookups of account names (guests may not take them).
+    db.collection("user").createIndex({ name: 1 }, { collation: NAME_COLLATION, name: "name_ci" }),
     pushSubscriptions.createIndex({ chatId: 1, participantId: 1 }, { name: "chat_participant" }),
   ]);
 }
