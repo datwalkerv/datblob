@@ -24,6 +24,8 @@ export default async function DashboardPage() {
     requestOrigin(),
   ]);
   const atLimit = chats.length >= MAX_LIVE_CHATS_PER_OWNER;
+  // Created and joined chats side by side, most recently active first.
+  const all = [...chats, ...joined].sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt));
   const firstName = session.user.name.split(" ")[0];
 
   return (
@@ -43,12 +45,12 @@ export default async function DashboardPage() {
             <JoinLinkButton />
           </div>
           <span className="font-mono text-[0.7rem] text-muted-foreground tabular-nums">
-            {chats.length}/{MAX_LIVE_CHATS_PER_OWNER} live
+            {chats.length}/{MAX_LIVE_CHATS_PER_OWNER} created
           </span>
         </div>
       </div>
 
-      {chats.length === 0 ? (
+      {all.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border bg-card/30">
           <EmptyState
             seed="datblob:empty-dashboard"
@@ -61,28 +63,10 @@ export default async function DashboardPage() {
         </div>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {chats.map((chat, i) => (
+          {all.map((chat, i) => (
             <ChatCard key={chat.id} chat={chat} origin={origin} index={i} />
           ))}
         </ul>
-      )}
-
-      {joined.length > 0 && (
-        <section aria-labelledby="joined-heading" className="flex flex-col gap-4">
-          <div>
-            <h2 id="joined-heading" className="text-lg font-semibold tracking-tight">
-              Joined
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Chats you&apos;re in with your account. They disappear when their owner closes them or they expire.
-            </p>
-          </div>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {joined.map((chat, i) => (
-              <ChatCard key={chat.id} chat={chat} origin={origin} index={chats.length + i} />
-            ))}
-          </ul>
-        </section>
       )}
 
       <div className="flex items-start gap-3 rounded-2xl border border-border bg-card/40 p-4 text-sm">
